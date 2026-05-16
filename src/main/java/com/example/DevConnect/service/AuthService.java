@@ -1,6 +1,7 @@
 package com.example.DevConnect.service;
 
 import com.example.DevConnect.dto.request.LoginRequest;
+import com.example.DevConnect.dto.request.RegisterRequest;
 import com.example.DevConnect.dto.response.AuthResponse;
 import com.example.DevConnect.entity.User;
 import com.example.DevConnect.repository.UserRepository;
@@ -33,7 +34,12 @@ public class AuthService {
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
-    public AuthResponse register(User user) {
+    public String register(RegisterRequest request) {
+
+        User user = new User();
+        user.setEmail(request.getEmail());
+        user.setPassword(request.getPassword());
+
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
             throw new RuntimeException("Email already exists");
         }
@@ -43,19 +49,10 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        if (user.getRole() == null || user.getRole().isEmpty()) {
-            user.setRole(List.of("USER"));
-        }
+        user.setRole(List.of("USER"));
         userRepository.save(user);
 
-        UserDetails userDetails = userDetailsService.loadUserByUsername(user.getEmail());
-        String token = jwtUtil.generateToken(userDetails);
-
-        return AuthResponse.builder()
-                .token(token)
-                .email(user.getEmail())
-                .role(user.getRole())
-                .build();
+        return "User registered successfully! Please log in.";
     }
 
     public AuthResponse login(LoginRequest request) {

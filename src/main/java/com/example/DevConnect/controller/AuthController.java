@@ -1,6 +1,8 @@
 package com.example.DevConnect.controller;
 
 import com.example.DevConnect.dto.request.LoginRequest;
+import com.example.DevConnect.dto.request.RegisterRequest;
+import com.example.DevConnect.dto.response.ApiResponse;
 import com.example.DevConnect.entity.User;
 import com.example.DevConnect.service.AuthService;
 import jakarta.validation.Valid;
@@ -19,20 +21,21 @@ public class AuthController {
     private AuthService authService;
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@Valid @RequestBody User user) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
-            return ResponseEntity.ok(authService.register(user));
+            String message = authService.register(request);
+            return ResponseEntity.ok(ApiResponse.success(message, null));
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
-            return ResponseEntity.ok(authService.login(request));
+            return ResponseEntity.ok(ApiResponse.success("Login successful!", authService.login(request)));
         } catch (Exception e) {
-            return ResponseEntity.status(401).body("Invalid credentials");
+            return ResponseEntity.status(401).body(ApiResponse.error("Invalid credentials"));
         }
     }
 }

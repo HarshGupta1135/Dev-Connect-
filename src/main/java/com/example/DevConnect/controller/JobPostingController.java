@@ -5,6 +5,7 @@ import com.example.DevConnect.service.JobPostingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.DevConnect.dto.response.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,13 +19,13 @@ public class JobPostingController {
 
     @PostMapping
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<JobPosting> createJob(@RequestBody JobPosting jobPosting) {
-        return ResponseEntity.ok(jobPostingService.createJob(jobPosting));
+    public ResponseEntity<?> createJob(@RequestBody JobPosting jobPosting) {
+        return ResponseEntity.ok(ApiResponse.success("Job created successfully", jobPostingService.createJob(jobPosting)));
     }
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<List<JobPosting>> getAllJobs() {
-        return ResponseEntity.ok(jobPostingService.getAllJobs());
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<?> getAllJobs() {
+        return ResponseEntity.ok(ApiResponse.success("Jobs fetched successfully", jobPostingService.getAllJobs()));
     }
 }

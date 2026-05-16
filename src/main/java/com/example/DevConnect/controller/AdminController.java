@@ -5,6 +5,7 @@ import com.example.DevConnect.service.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import com.example.DevConnect.dto.response.ApiResponse;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,14 +19,21 @@ public class AdminController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @GetMapping("/get-all-users")
-    public List<User> getAllUsers() {
-        return adminService.getAllUsers();
+    public ResponseEntity<?> getAllUsers() {
+        return ResponseEntity.ok(ApiResponse.success("Users fetched successfully", adminService.getAllUsers()));
     }
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/add-admin")
     public ResponseEntity<?> createAdmin(@RequestBody User user){
-        return adminService.createAdmin(user);
+        ResponseEntity<?> serviceResponse = adminService.createAdmin(user);
+        if (serviceResponse.getStatusCode().is2xxSuccessful()) {
+            return ResponseEntity.status(serviceResponse.getStatusCode())
+                    .body(ApiResponse.success((String)serviceResponse.getBody(), null));
+        } else {
+            return ResponseEntity.status(serviceResponse.getStatusCode())
+                    .body(ApiResponse.error((String)serviceResponse.getBody()));
+        }
     }
 
 }
