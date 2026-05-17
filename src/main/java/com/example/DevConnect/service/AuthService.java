@@ -49,10 +49,13 @@ public class AuthService {
         }
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
-        user.setRole(List.of("USER"));
+        
+        String chosenRole = request.getRole();
+        user.setRole(List.of(chosenRole.toUpperCase()));
+        
         userRepository.save(user);
 
-        return "User registered successfully! Please log in.";
+        return "User registered successfully as " + user.getRole().get(0) + "! Please log in.";
     }
 
     public AuthResponse login(LoginRequest request) {

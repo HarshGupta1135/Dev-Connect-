@@ -1,10 +1,10 @@
 package com.example.DevConnect.dto.request;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Data
 @AllArgsConstructor
@@ -12,5 +12,7 @@ import java.util.List;
 public class RegisterRequest {
     private String email;
     private String password;
-    private List<String> role;
+    @NotBlank(message = "Role is required")
+    @Pattern(regexp = "DEVELOPER|RECRUITER", message = "Role must be either DEVELOPER or RECRUITER")
+    private String role;
 }
