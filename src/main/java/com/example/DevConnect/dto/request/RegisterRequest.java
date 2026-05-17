@@ -13,6 +13,8 @@ public class RegisterRequest {
     private String email;
     private String password;
     @NotBlank(message = "Role is required")
-    @Pattern(regexp = "DEVELOPER|RECRUITER", message = "Role must be either DEVELOPER or RECRUITER")
+    @Pattern(regexp = "DEVELOPER|RECRUITER|developer|recruiter|Developer|Recruiter",
+
+            message = "Role must be either DEVELOPER or RECRUITER")
     private String role;
 }

@@ -3,7 +3,7 @@ package com.example.DevConnect.controller;
 import com.example.DevConnect.dto.request.LoginRequest;
 import com.example.DevConnect.dto.request.RegisterRequest;
 import com.example.DevConnect.dto.response.ApiResponse;
-import com.example.DevConnect.entity.User;
+import com.example.DevConnect.exception.MethodArgumentNotValidException;
 import com.example.DevConnect.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +25,8 @@ public class AuthController {
         try {
             String message = authService.register(request);
             return ResponseEntity.ok(ApiResponse.success(message, null));
+        }catch (MethodArgumentNotValidException m){
+            throw new MethodArgumentNotValidException("Please fill the proper details in the form.");
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
