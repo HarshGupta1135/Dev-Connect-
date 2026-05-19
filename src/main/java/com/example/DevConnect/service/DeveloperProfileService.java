@@ -33,14 +33,6 @@ public class DeveloperProfileService {
             throw new RuntimeException("Profile already exists for this user");
         }
 
-        DeveloperProfile profile = new DeveloperProfile();
-        profile.setUser(user);
-        profile.setFullName(developerProfileRequest.getFullName());
-        profile.setBio(developerProfileRequest.getBio());
-        profile.setLocation(developerProfileRequest.getLocation());
-        profile.setYearsExp(developerProfileRequest.getYearsExp());
-        profile.setLinkedinUrl(developerProfileRequest.getLinkedinUrl());
-
         Set<Skill> skillSet = new HashSet<>();
         if (developerProfileRequest.getSkills() != null) {
             for (String skillName : developerProfileRequest.getSkills()) {
@@ -50,7 +42,15 @@ public class DeveloperProfileService {
             }
         }
 
-        profile.setSkills(skillSet);
+        DeveloperProfile profile = DeveloperProfile.builder()
+                .user(user)
+                .fullName(developerProfileRequest.getFullName())
+                .bio(developerProfileRequest.getBio())
+                .location(developerProfileRequest.getLocation())
+                .yearsExp(developerProfileRequest.getYearsExp())
+                .linkedinUrl(developerProfileRequest.getLinkedinUrl())
+                .skills(skillSet)
+                .build();
 
         developerProfileRepository.save(profile);
 
