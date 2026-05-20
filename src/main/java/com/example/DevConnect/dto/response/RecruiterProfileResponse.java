@@ -1,14 +1,16 @@
-package com.example.DevConnect.dto.request;
+package com.example.DevConnect.dto.response;
 
-import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class RecruiterProfileRequest {
+@Builder
+public class RecruiterProfileResponse {
+    private Long id;
     private String fullName;
     private String companyName;
     private String description;

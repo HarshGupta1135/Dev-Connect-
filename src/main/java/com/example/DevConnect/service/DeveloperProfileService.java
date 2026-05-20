@@ -11,6 +11,7 @@ import com.example.DevConnect.repository.SkillRepository;
 import com.example.DevConnect.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ public class DeveloperProfileService {
     @Autowired
     private SkillRepository skillRepository;
 
+    @Transactional
     public String createProfile(DeveloperProfileRequest developerProfileRequest, String email) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
@@ -62,6 +64,7 @@ public class DeveloperProfileService {
 
     }
 
+    @Transactional
     public String updateProfile(DeveloperProfileRequest developerProfileRequest, String email) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));

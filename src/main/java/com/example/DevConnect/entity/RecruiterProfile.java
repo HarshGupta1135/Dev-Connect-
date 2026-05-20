@@ -22,6 +22,8 @@ public class RecruiterProfile {
     @JoinColumn(name = "user_id", referencedColumnName = "id")
     private User user;
 
+    private String fullName;
+
     private String companyName;
 
     @Column(columnDefinition = "TEXT")
