@@ -3,6 +3,7 @@ package com.example.DevConnect.controller;
 import com.example.DevConnect.dto.request.RecruiterProfileRequest;
 import com.example.DevConnect.dto.response.ApiResponse;
 import com.example.DevConnect.dto.response.RecruiterProfileResponse;
+import com.example.DevConnect.dto.response.DeveloperProfileResponse;
 import com.example.DevConnect.service.RecruiterProfileService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,6 +41,14 @@ public class RecruiterProfileController {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         recruiterProfileService.updateProfile(recruiterProfileRequest,email);
         return ResponseEntity.ok(ApiResponse.success("Profile Updated Successfully",null));
+    }
+
+    @GetMapping("/developer/profile/{id}")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<?> getDeveloperProfile(@PathVariable Long id){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        DeveloperProfileResponse developerProfile = recruiterProfileService.getDeveloperProfile(email, id);
+        return ResponseEntity.ok(ApiResponse.success("Profile Retrieved Successfully",developerProfile));
     }
 
 }

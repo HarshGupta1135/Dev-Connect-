@@ -2,13 +2,19 @@ package com.example.DevConnect.service;
 
 import com.example.DevConnect.dto.request.RecruiterProfileRequest;
 import com.example.DevConnect.dto.response.RecruiterProfileResponse;
+import com.example.DevConnect.dto.response.DeveloperProfileResponse;
+import com.example.DevConnect.entity.DeveloperProfile;
 import com.example.DevConnect.entity.RecruiterProfile;
+import com.example.DevConnect.entity.Skill;
 import com.example.DevConnect.entity.User;
+import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.repository.RecruiterProfileRepository;
 import com.example.DevConnect.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
 public class RecruiterProfileService {
@@ -18,6 +24,9 @@ public class RecruiterProfileService {
 
     @Autowired
     private RecruiterProfileRepository recruiterProfileRepository;
+
+    @Autowired
+    private DeveloperProfileRepository developerProfileRepository;
 
     @Transactional
     public String createProfile(RecruiterProfileRequest recruiterProfileRequest, String email) {
@@ -90,6 +99,30 @@ public class RecruiterProfileService {
         }
 
         recruiterProfileRepository.save(recruiterProfile);
+
+    }
+
+    public DeveloperProfileResponse getDeveloperProfile(String email, Long id) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+
+        DeveloperProfile profile = developerProfileRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Profile does not exist with this id"));
+
+        List<String> skillNames = profile.getSkills() != null
+                ? profile.getSkills().stream().map(Skill::getName).toList()
+                : List.of();
+
+        return DeveloperProfileResponse.builder()
+                .id(profile.getId())
+                .fullName(profile.getFullName())
+                .bio(profile.getBio())
+                .location(profile.getLocation())
+                .yearsExp(profile.getYearsExp())
+                .resumeUrl(profile.getResumeUrl())
+                .linkedinUrl(profile.getLinkedinUrl())
+                .skills(skillNames)
+                .build();
 
     }
 }
