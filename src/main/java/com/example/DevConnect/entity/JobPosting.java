@@ -4,6 +4,7 @@ import com.example.DevConnect.enums.JobStatus;
 import com.example.DevConnect.enums.JobType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
@@ -15,6 +16,7 @@ import java.util.Set;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
+@Builder
 @Table(name = "job_postings")
 public class JobPosting {
 

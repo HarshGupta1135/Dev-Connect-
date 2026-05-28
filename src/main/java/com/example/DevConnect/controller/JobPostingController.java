@@ -1,31 +1,30 @@
 package com.example.DevConnect.controller;
 
-import com.example.DevConnect.entity.JobPosting;
+import com.example.DevConnect.dto.request.JobPostingRequest;
+import com.example.DevConnect.dto.response.ApiResponse;
 import com.example.DevConnect.service.JobPostingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import com.example.DevConnect.dto.response.ApiResponse;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/api/jobs")
+@RequestMapping("/api")
 public class JobPostingController {
 
     @Autowired
     private JobPostingService jobPostingService;
 
-    @PostMapping
+    @PostMapping("/recruiter/jobs")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<?> createJob(@RequestBody JobPosting jobPosting) {
-        return ResponseEntity.ok(ApiResponse.success("Job created successfully", jobPostingService.createJob(jobPosting)));
+    public ResponseEntity<?> createJob(@RequestBody JobPostingRequest jobPostingRequest){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        jobPostingService.createJob(email,jobPostingRequest);
+        return ResponseEntity.ok(ApiResponse.success("Job Created Successfully",null));
     }
 
-    @GetMapping
-    @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<?> getAllJobs() {
-        return ResponseEntity.ok(ApiResponse.success("Jobs fetched successfully", jobPostingService.getAllJobs()));
-    }
 }
