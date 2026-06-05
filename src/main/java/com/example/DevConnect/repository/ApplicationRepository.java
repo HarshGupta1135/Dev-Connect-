@@ -12,4 +12,5 @@ import java.util.List;
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
     List<Application> findByDeveloper(DeveloperProfile developer);
     List<Application> findByJob(JobPosting job);
+    boolean existsByDeveloperAndJob(DeveloperProfile developer, JobPosting job);
 }
