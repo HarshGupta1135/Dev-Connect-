@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 
+
 @RestController
 @RequestMapping("/api")
 public class JobPostingController {
@@ -66,5 +67,35 @@ public class JobPostingController {
 
         Page<JobPostingResponse> activeJobs = jobPostingService.getActiveJobs(skills, location, type, pageable);
         return ResponseEntity.ok(ApiResponse.success("Active jobs fetched successfully", activeJobs));
+    }
+
+    @GetMapping("/jobs/{id}")
+    public ResponseEntity<?> getJobById(@PathVariable Long id){
+        JobPostingResponse job = jobPostingService.getJobById(id);
+        return ResponseEntity.ok(ApiResponse.success("Job Fetched Successfully", job));
+    }
+
+    @PutMapping("/recruiter/jobs/{id}")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<?> updateJob(@PathVariable Long id, @RequestBody JobPostingRequest jobPostingRequest) {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        jobPostingService.updateJob(email, id, jobPostingRequest);
+        return ResponseEntity.ok(ApiResponse.success("Job Updated Successfully", null));
+    }
+
+    @PatchMapping("/recruiter/jobs/{id}/close")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<?> closeJobById(@PathVariable Long id){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        jobPostingService.closeJobById(email,id);
+        return ResponseEntity.ok(ApiResponse.success("Job Closed Successfully",null));
+    }
+
+    @GetMapping("/recruiter/jobs")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<?> getAllJobsByRecruiter(){
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        List<JobPostingResponse> jobs = jobPostingService.getAllJobsByRecruiter(email);
+        return ResponseEntity.ok(ApiResponse.success("Jobs Fetched Successfully", jobs));
     }
 }

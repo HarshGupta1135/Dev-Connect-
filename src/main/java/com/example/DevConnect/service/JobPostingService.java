@@ -2,6 +2,8 @@ package com.example.DevConnect.service;
 
 import com.example.DevConnect.dto.request.JobPostingRequest;
 import com.example.DevConnect.dto.response.JobPostingResponse;
+import com.example.DevConnect.exception.ResourceNotFoundException;
+import com.example.DevConnect.exception.UnauthorizedException;
 import com.example.DevConnect.entity.JobPosting;
 import com.example.DevConnect.entity.RecruiterProfile;
 import com.example.DevConnect.entity.Skill;
@@ -139,5 +141,100 @@ public class JobPostingService {
                 .requiredSkills(skills)
                 .companyName(companyName)
                 .build();
+    }
+
+    public JobPostingResponse getJobById(Long id) {
+        JobPosting jobPosting = jobPostingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job Posting Not Found with ID: " + id));
+        return mapToResponse(jobPosting);
+    }
+
+    @Transactional
+    public void updateJob(String email, Long id, JobPostingRequest request) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+
+        RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter Profile Not Found. Please create a profile first."));
+
+        JobPosting jobPosting = jobPostingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job Posting Not Found with ID: " + id));
+
+        // CRUCIAL SECURITY CHECK: Verify the job belongs to the logged-in recruiter
+        if (!jobPosting.getRecruiter().getId().equals(recruiterProfile.getId())) {
+            throw new UnauthorizedException("You are not authorized to update this job posting");
+        }
+
+        // Update fields if provided in request
+        if (request.getTitle() != null) {
+            jobPosting.setTitle(request.getTitle());
+        }
+        if (request.getDescription() != null) {
+            jobPosting.setDescription(request.getDescription());
+        }
+        if (request.getJobType() != null) {
+            jobPosting.setJobType(request.getJobType());
+        }
+        if (request.getLocation() != null) {
+            jobPosting.setLocation(request.getLocation());
+        }
+        if (request.getExperienceRequired() != null) {
+            jobPosting.setExperienceRequired(request.getExperienceRequired());
+        }
+        if (request.getStatus() != null) {
+            jobPosting.setStatus(request.getStatus());
+        }
+        if (request.getExpiresAt() != null) {
+            jobPosting.setExpiresAt(request.getExpiresAt());
+        }
+
+        // Update required skills if provided
+        if (request.getRequiredSkills() != null) {
+            Set<Skill> skillSet = new HashSet<>();
+            for (String skillName : request.getRequiredSkills()) {
+                Skill skill = skillRepository.findByName(skillName)
+                        .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + skillName + ". Please contact admin to add it."));
+                skillSet.add(skill);
+            }
+            jobPosting.setRequiredSkills(skillSet);
+        }
+
+        jobPostingRepository.save(jobPosting);
+    }
+
+    @Transactional
+    public void closeJobById(String email, Long id) {
+
+        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+
+        RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user).orElseThrow(
+                () -> new ResourceNotFoundException("Recruiter Profile Not Found. Please create a profile first"));
+
+        JobPosting jobPosting = jobPostingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Job not found with id : " + id));
+
+        if (!jobPosting.getRecruiter().getId().equals(recruiterProfile.getId())) {
+            throw new UnauthorizedException("You are not authorized to update this job posting");
+        }
+
+        jobPosting.setStatus(JobStatus.CLOSED);
+
+    }
+
+    public List<JobPostingResponse> getAllJobsByRecruiter(String email) {
+
+        User user = userRepository.findByEmail(email).
+                orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+
+        RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user)
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter Profile Not Found. Please create a profile first"));
+
+        List<JobPosting> jobs = jobPostingRepository.findByRecruiter(recruiterProfile);
+        List<JobPostingResponse> responseList = new ArrayList<>();
+        for (JobPosting job : jobs) {
+            responseList.add(mapToResponse(job));
+        }
+        return responseList;
+
     }
 }
