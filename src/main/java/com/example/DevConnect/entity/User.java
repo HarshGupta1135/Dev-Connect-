@@ -1,7 +1,6 @@
 package com.example.DevConnect.entity;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -24,10 +23,6 @@ public class User {
 
     private String userName;
 
-    @Pattern(
-            regexp = "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{8,}$",
-            message = "Password must contain at least 1 uppercase letter, 1 digit, 1 special character and be at least 8 characters long"
-    )
     private String password;
 
     @Column(unique = true)

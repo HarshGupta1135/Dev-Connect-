@@ -10,7 +10,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RegisterRequest {
+    @NotBlank(message = "Email is required")
+    @Pattern(
+            regexp = "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+            message = "Invalid email format"
+    )
     private String email;
+    @NotBlank(message = "Password is required")
+    @Pattern(
+            regexp = "^(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{8,}$",
+            message = "Password must contain at least 1 uppercase letter, 1 digit, 1 special character and be at least 8 characters long"
+    )
     private String password;
     @NotBlank(message = "Role is required")
     @Pattern(regexp = "DEVELOPER|RECRUITER|developer|recruiter|Developer|Recruiter",
