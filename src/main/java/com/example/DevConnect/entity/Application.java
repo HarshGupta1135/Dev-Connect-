@@ -35,6 +35,9 @@ public class Application {
     @Enumerated(EnumType.STRING)
     private ApplicationStatus status;
 
+    @Builder.Default
+    private boolean mailSent = false;
+
     @Column(columnDefinition = "TEXT")
     private String coverNote;
 
