@@ -12,6 +12,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -65,7 +68,18 @@ public class JobPostingController {
         Sort sortOrder = orders.isEmpty() ? Sort.by(Sort.Direction.DESC, "createdAt") : Sort.by(orders);
         Pageable pageable = PageRequest.of(page, size, sortOrder);
 
-        Page<JobPostingResponse> activeJobs = jobPostingService.getActiveJobs(skills, location, type, pageable);
+        String developerEmail = null;
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.isAuthenticated() && !(auth instanceof AnonymousAuthenticationToken)) {
+            for (GrantedAuthority authority : auth.getAuthorities()) {
+                if (authority.getAuthority().equals("ROLE_DEVELOPER")) {
+                    developerEmail = auth.getName();
+                    break;
+                }
+            }
+        }
+
+        Page<JobPostingResponse> activeJobs = jobPostingService.getActiveJobs(skills, location, type, pageable, developerEmail);
         return ResponseEntity.ok(ApiResponse.success("Active jobs fetched successfully", activeJobs));
     }
 

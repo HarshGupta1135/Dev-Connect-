@@ -21,6 +21,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.example.DevConnect.dto.response.JobPostingWithMatchResponse;
+import com.example.DevConnect.entity.DeveloperProfile;
+import com.example.DevConnect.repository.DeveloperProfileRepository;
+import com.example.DevConnect.util.SkillMatchUtil;
+import org.springframework.data.domain.PageImpl;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -39,6 +44,9 @@ public class JobPostingService {
 
     @Autowired
     private SkillRepository skillRepository;
+
+    @Autowired
+    private DeveloperProfileRepository developerProfileRepository;
 
     @Transactional
     public void createJob(String email, JobPostingRequest jobPostingRequest) {
@@ -79,7 +87,7 @@ public class JobPostingService {
         jobPostingRepository.save(jobPosting);
     }
 
-    public Page<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable) {
+    public Page<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
         Specification<JobPosting> spec = Specification.where((root, query, cb) -> 
             cb.equal(root.get("status"), JobStatus.ACTIVE)
         );
@@ -101,11 +109,15 @@ public class JobPostingService {
                 query.distinct(true);
                 Join<JobPosting, Skill> skillJoin = root.join("requiredSkills");
                 
-                List<String> lowerSkills = skills.stream()
-                        .map(String::toLowerCase)
-                        .map(String::trim)
-                        .filter(s -> !s.isEmpty())
-                        .collect(Collectors.toList());
+                List<String> lowerSkills = new ArrayList<>();
+                for (String s : skills) {
+                    if (s != null) {
+                        String trimmed = s.trim().toLowerCase();
+                        if (!trimmed.isEmpty()) {
+                            lowerSkills.add(trimmed);
+                        }
+                    }
+                }
                 
                 if (lowerSkills.isEmpty()) {
                     return null;
@@ -115,8 +127,60 @@ public class JobPostingService {
             });
         }
 
-        Page<JobPosting> jobPostings = jobPostingRepository.findAll(spec, pageable);
-        return jobPostings.map(this::mapToResponse);
+        // It gives skills id list of a developer
+        if (developerEmail != null) {
+            User user = userRepository.findByEmail(developerEmail).orElse(null);
+            Set<Long> devSkillIds = new HashSet<>();
+            if (user != null) {
+                DeveloperProfile devProfile = developerProfileRepository.findByUser(user).orElse(null);
+                if (devProfile != null && devProfile.getSkills() != null) {
+                    for (Skill skill : devProfile.getSkills()) {
+                        if (skill != null && skill.getId() != null) {
+                            devSkillIds.add(skill.getId());
+                        }
+                    }
+                }
+            }
+
+            List<JobPosting> allActiveJobs = jobPostingRepository.findAll(spec);
+            List<JobPostingWithMatchResponse> matchResponses = new ArrayList<>();
+
+            for (JobPosting job : allActiveJobs) {
+                Set<Long> jobSkillIds = new HashSet<>();
+                if (job.getRequiredSkills() != null) {
+                    for (Skill skill : job.getRequiredSkills()) {
+                        if (skill != null && skill.getId() != null) {
+                            jobSkillIds.add(skill.getId());
+                        }
+                    }
+                }
+
+                double matchPercentage = SkillMatchUtil.calculateMatchScore(devSkillIds, jobSkillIds);
+                matchResponses.add(mapToMatchResponse(job, matchPercentage));
+            }
+
+            Collections.sort(matchResponses, new Comparator<JobPostingWithMatchResponse>() {
+                @Override
+                public int compare(JobPostingWithMatchResponse o1, JobPostingWithMatchResponse o2) {
+                    return Double.compare(o2.getMatchPercentage(), o1.getMatchPercentage());
+                }
+            });
+
+            int start = (int) pageable.getOffset();
+            int end = Math.min((start + pageable.getPageSize()), matchResponses.size());
+
+            List<JobPostingResponse> pagedResponses = new ArrayList<>();
+            if (start < matchResponses.size()) {
+                for (int i = start; i < end; i++) {
+                    pagedResponses.add(matchResponses.get(i));
+                }
+            }
+
+            return new PageImpl<>(pagedResponses, pageable, matchResponses.size());
+        } else {
+            Page<JobPosting> jobPostings = jobPostingRepository.findAll(spec, pageable);
+            return jobPostings.map(this::mapToResponse);
+        }
     }
 
     private JobPostingResponse mapToResponse(JobPosting jobPosting) {
@@ -140,6 +204,35 @@ public class JobPostingService {
                 .expiresAt(jobPosting.getExpiresAt())
                 .requiredSkills(skills)
                 .companyName(companyName)
+                .build();
+    }
+
+    private JobPostingWithMatchResponse mapToMatchResponse(JobPosting jobPosting, double score) {
+        List<String> skills = new ArrayList<>();
+        if (jobPosting.getRequiredSkills() != null) {
+            for (Skill skill : jobPosting.getRequiredSkills()) {
+                if (skill != null) {
+                    skills.add(skill.getName());
+                }
+            }
+        }
+
+        String companyName = jobPosting.getRecruiter() != null && jobPosting.getRecruiter().getCompanyName() != null ?
+                jobPosting.getRecruiter().getCompanyName() : null;
+
+        return JobPostingWithMatchResponse.builder()
+                .id(jobPosting.getId())
+                .title(jobPosting.getTitle())
+                .description(jobPosting.getDescription())
+                .jobType(jobPosting.getJobType())
+                .location(jobPosting.getLocation())
+                .experienceRequired(jobPosting.getExperienceRequired())
+                .status(jobPosting.getStatus())
+                .createdAt(jobPosting.getCreatedAt())
+                .expiresAt(jobPosting.getExpiresAt())
+                .requiredSkills(skills)
+                .companyName(companyName)
+                .matchPercentage(score)
                 .build();
     }
 
