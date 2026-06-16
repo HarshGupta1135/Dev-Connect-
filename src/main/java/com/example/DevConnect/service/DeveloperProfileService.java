@@ -132,4 +132,16 @@ public class DeveloperProfileService {
                 .build();
 
     }
+
+    @Transactional
+    public void updateResumeUrl(String email, String resumeUrl) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User Not Found"));
+        
+        DeveloperProfile profile = developerProfileRepository.findByUser(user)
+                .orElseThrow(() -> new RuntimeException("Developer Profile Not Found"));
+        
+        profile.setResumeUrl(resumeUrl);
+        developerProfileRepository.save(profile);
+    }
 }

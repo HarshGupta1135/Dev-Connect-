@@ -27,3 +27,8 @@ spring:
           auth: true
           starttls:
             enable: true
+
+cloudinary:
+  cloud-name: dnrrxjurs
+  api-key: 426587575266173
+  api-secret: HzzK27S0J_jsHrKoQqak6VWhPQE
