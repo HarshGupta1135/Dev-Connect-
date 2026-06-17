@@ -28,6 +28,14 @@ spring:
           starttls:
             enable: true
 
+  data:
+    redis:
+      host: fast-jackass-149466.upstash.io
+      port: 6379
+      password: gQAAAAAAAkfaAAIgcDExZmY3NmU4MjFhMTk0Mjg2YjI3ZjE3MTZhNjZiZWYzOA
+      ssl:
+        enabled: true
+
 cloudinary:
   cloud-name: dnrrxjurs
   api-key: 426587575266173
