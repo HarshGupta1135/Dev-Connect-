@@ -34,6 +34,9 @@ public class AuthService {
     @Autowired
     private UserDetailsServiceImpl userDetailsService;
 
+    @Autowired
+    private EmailService emailService;
+
     public String register(RegisterRequest request) {
 
         if (userRepository.findByUserName(request.getUsername()) != null) {
@@ -59,6 +62,7 @@ public class AuthService {
         user.setRole(List.of(chosenRole.toUpperCase()));
         
         userRepository.save(user);
+        emailService.sendWelcomeEmail(user.getEmail(), user.getUserName());
 
         return "User registered successfully as " + user.getRole().get(0) + "! Please log in.";
     }

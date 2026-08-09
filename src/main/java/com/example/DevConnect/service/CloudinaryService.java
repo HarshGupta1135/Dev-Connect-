@@ -26,7 +26,7 @@ public class CloudinaryService {
             }
 
             // Generate a unique filename using UUID to avoid collisions
-            String uniquePublicId = UUID.randomUUID().toString() + extension;
+            String uniquePublicId = UUID.randomUUID() + extension;
 
             Map<Object, Object> options = new HashMap<>();
             options.put("folder", "resumes");

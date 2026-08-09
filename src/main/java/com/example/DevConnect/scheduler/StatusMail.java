@@ -29,9 +29,8 @@ public class StatusMail {
             User user = app.getDeveloper().getUser();
             String toEmail = user.getEmail();
             
-            // Get job role and company name
+            // Get job role
             String role = app.getJob().getTitle();
-            String companyName = app.getJob().getRecruiter().getCompanyName();
             
             String candidateName = app.getDeveloper().getFullName();
             if (candidateName == null || candidateName.trim().isEmpty()) {
@@ -41,24 +40,8 @@ public class StatusMail {
                 candidateName = "Candidate";
             }
 
-            // Construct subject and body
-            String subject = "Application Update: " + role + " at " + companyName;
-
-            String bodyTemplate = "Dear [CandidateName],\n\n" +
-                                  "Thank you for your interest in the [Role] position at XYZ.\n\n" +
-                                  "After reviewing your application, we have decided not to move forward with your candidacy for this position. We appreciate the time and effort you invested in the application process.\n\n" +
-                                  "We wish you the best in your future endeavors.\n\n" +
-                                  "Best regards,\n" +
-                                  "XYZ Recruitment Team";
-
-            // Replace template placeholders
-            String body = bodyTemplate
-                    .replace("[CandidateName]", candidateName)
-                    .replace("[Role]", role)
-                    .replace("XYZ", companyName);
-
-            // Send email
-            emailService.sendEmail(toEmail, subject, body);
+            // Send HTML email
+            emailService.sendStatusUpdateEmail(toEmail, candidateName, role, "REJECTED");
 
             // Mark as sent and save to database
             app.setMailSent(true);
@@ -75,9 +58,8 @@ public class StatusMail {
             User user = app.getDeveloper().getUser();
             String toEmail = user.getEmail();
             
-            // Get job role and company name
+            // Get job role
             String role = app.getJob().getTitle();
-            String companyName = app.getJob().getRecruiter().getCompanyName();
             
             String candidateName = app.getDeveloper().getFullName();
             if (candidateName == null || candidateName.trim().isEmpty()) {
@@ -87,23 +69,8 @@ public class StatusMail {
                 candidateName = "Candidate";
             }
 
-            // Construct subject and body
-            String subject = "Application Shortlisted: " + role + " at " + companyName;
-
-            String bodyTemplate = "Dear [CandidateName],\n\n" +
-                                  "Congratulations! We are pleased to inform you that you have been shortlisted for the [Role] position at XYZ.\n\n" +
-                                  "The recruitment team at XYZ will contact you shortly with the next steps of the selection process.\n\n" +
-                                  "Best regards,\n" +
-                                  "XYZ Recruitment Team";
-
-            // Replace template placeholders
-            String body = bodyTemplate
-                    .replace("[CandidateName]", candidateName)
-                    .replace("[Role]", role)
-                    .replace("XYZ", companyName);
-
-            // Send email
-            emailService.sendEmail(toEmail, subject, body);
+            // Send HTML email
+            emailService.sendStatusUpdateEmail(toEmail, candidateName, role, "SHORTLISTED");
 
             // Mark as sent and save to database
             app.setMailSent(true);

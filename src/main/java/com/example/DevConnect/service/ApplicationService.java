@@ -38,6 +38,9 @@ public class ApplicationService {
     @Autowired
     private JobPostingService jobPostingService;
 
+    @Autowired
+    private EmailService emailService;
+
     @Transactional
     public void applyForJob(String email, ApplicationRequest applicationRequest) {
 
@@ -70,6 +73,18 @@ public class ApplicationService {
                 .build();
 
         applicationRepository.save(application);
+
+        String developerName = developerProfile.getFullName();
+        if (developerName == null || developerName.trim().isEmpty()) {
+            developerName = user.getUserName();
+        }
+        if (developerName == null || developerName.trim().isEmpty()) {
+            developerName = "Candidate";
+        }
+        String jobTitle = jobPosting.getTitle();
+        String companyName = jobPosting.getRecruiter().getCompanyName();
+
+        emailService.sendApplicationConfirmationEmail(email, developerName, jobTitle, companyName);
     }
 
     public List<ApplicationResponse> getJobApplications(String email) {
@@ -154,6 +169,21 @@ public class ApplicationService {
         }
 
         application.setStatus(applicationStatus);
+        application.setMailSent(true); // Mark as sent to prevent duplicate scheduler runs
         applicationRepository.save(application);
+
+        // Get applicant details
+        User applicantUser = application.getDeveloper().getUser();
+        String developerName = application.getDeveloper().getFullName();
+        if (developerName == null || developerName.trim().isEmpty()) {
+            developerName = applicantUser.getUserName();
+        }
+        if (developerName == null || developerName.trim().isEmpty()) {
+            developerName = "Candidate";
+        }
+        String jobTitle = application.getJob().getTitle();
+
+        // Send status email asynchronously
+        emailService.sendStatusUpdateEmail(applicantUser.getEmail(), developerName, jobTitle, applicationStatus.name());
     }
 }
