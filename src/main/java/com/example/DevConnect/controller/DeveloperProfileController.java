@@ -20,6 +20,9 @@ public class DeveloperProfileController {
     @Autowired
     private DeveloperProfileService developerService;
 
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
     @PreAuthorize("hasRole('DEVELOPER')")
     @PostMapping("/developer/profile")
     public ResponseEntity<?> createProfile(@RequestBody DeveloperProfileRequest developerProfileRequest){
@@ -43,9 +46,6 @@ public class DeveloperProfileController {
         DeveloperProfileResponse data = developerService.getProfile(email);
         return ResponseEntity.ok(ApiResponse.success("Profile Fetched Successfully",data));
     }
-
-    @Autowired
-    private CloudinaryService cloudinaryService;
 
     @PreAuthorize("hasRole('DEVELOPER')")
     @PostMapping(value = "/developer/profile/resume", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)

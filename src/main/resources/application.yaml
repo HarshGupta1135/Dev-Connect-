@@ -30,9 +30,9 @@ spring:
 
   data:
     redis:
-      host: fast-jackass-149466.upstash.io
+      host: peaceful-reindeer-178199.upstash.io
       port: 6379
-      password: gQAAAAAAAkfaAAIgcDExZmY3NmU4MjFhMTk0Mjg2YjI3ZjE3MTZhNjZiZWYzOA
+      password: gQAAAAAAArgXAAIgcDExN2E5OTgzZjI1YmY0YmRkYTY5MjAwZDRkMjEyYzY3Mg
       ssl:
         enabled: true
 

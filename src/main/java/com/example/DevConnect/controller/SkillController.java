@@ -25,9 +25,9 @@ public class SkillController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/add/skills")
-    public ResponseEntity<?> addSkills(@RequestBody Skill skills){
-        skillService.addSkills(skills);
-        return ResponseEntity.ok(ApiResponse.success("Skills Added Successfully", null));
+    public ResponseEntity<?> addSkills(@RequestBody List<Skill> skills){
+        List<Skill> added = skillService.addSkills(skills);
+        return ResponseEntity.ok(ApiResponse.success("Skills Added Successfully", added));
     }
 
 }

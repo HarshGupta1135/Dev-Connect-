@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class RecruiterProfileRequest {
+    @NotBlank(message = "Full name is required")
     private String fullName;
     private String companyName;
     private String description;

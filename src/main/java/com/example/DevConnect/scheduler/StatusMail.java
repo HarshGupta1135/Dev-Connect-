@@ -20,7 +20,7 @@ public class StatusMail {
     @Autowired
     private ApplicationRepository applicationRepository;
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 */10 * * * *")
     public void sendMailToRejectedApplicants() {
         // Retrieve all applications with status REJECTED that haven't received an email yet
         List<Application> rejectedApplications = applicationRepository.findByStatusAndMailSent(ApplicationStatus.REJECTED, false);
@@ -66,7 +66,7 @@ public class StatusMail {
         }
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 */10 * * * *")
     public void sendMailToShortlistedApplicants() {
         // Retrieve all applications with status SHORTLISTED that haven't received an email yet
         List<Application> shortlistedApplications = applicationRepository.findByStatusAndMailSent(ApplicationStatus.SHORTLISTED, false);

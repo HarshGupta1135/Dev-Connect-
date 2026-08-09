@@ -4,8 +4,12 @@ import com.example.DevConnect.entity.Skill;
 import com.example.DevConnect.repository.SkillRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Service
 public class SkillService {
@@ -17,10 +21,27 @@ public class SkillService {
         return skillRepository.findAll();
     }
 
-    public void addSkills(Skill skills) {
-        if(skillRepository.findByName(skills.getName()).isPresent()){
-            throw new RuntimeException("Skill already exists with this name : " + skills.getName());
+    @Transactional
+    public List<Skill> addSkills(List<Skill> skills) {
+        if (skills == null || skills.isEmpty()) {
+            throw new IllegalArgumentException("Skills list cannot be empty");
         }
-        skillRepository.save(skills);
+
+        Set<String> seenNames = new HashSet<>();
+        for (Skill skill : skills) {
+            if (skill.getName() == null || skill.getName().isBlank()) {
+                throw new IllegalArgumentException("Skill name cannot be empty");
+            }
+            String skillName = skill.getName().trim();
+            if (seenNames.contains(skillName)) {
+                throw new RuntimeException("Duplicate skill name in request list: " + skillName);
+            }
+            if (skillRepository.findByName(skillName).isPresent()) {
+                throw new RuntimeException("Skill already exists with this name : " + skillName);
+            }
+            seenNames.add(skillName);
+            skill.setName(skillName);
+        }
+        return skillRepository.saveAll(skills);
     }
 }
