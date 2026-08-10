@@ -13,14 +13,19 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Authentication", description = "Endpoints for user registration and login")
 public class AuthController {
 
     @Autowired
     private AuthService authService;
 
     @PostMapping("/register")
+    @Operation(summary = "Register a new user", description = "Creates a new user profile as a DEVELOPER or RECRUITER and triggers a welcome email.")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         try {
             String message = authService.register(request);
@@ -33,6 +38,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Authenticate user", description = "Validates the user credentials and returns a JWT access token.")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
         try {
             return ResponseEntity.ok(ApiResponse.success("Login successful!", authService.login(request)));

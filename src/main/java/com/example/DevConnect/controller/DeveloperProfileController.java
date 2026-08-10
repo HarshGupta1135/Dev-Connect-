@@ -13,8 +13,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Developer Profile", description = "Endpoints for managing developer profiles and resumes")
 public class DeveloperProfileController {
 
     @Autowired
@@ -25,6 +29,7 @@ public class DeveloperProfileController {
 
     @PreAuthorize("hasRole('DEVELOPER')")
     @PostMapping("/developer/profile")
+    @Operation(summary = "Create developer profile", description = "Creates a new developer profile for the authenticated developer.")
     public ResponseEntity<?> createProfile(@RequestBody DeveloperProfileRequest developerProfileRequest){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String message = developerService.createProfile(developerProfileRequest,email);
@@ -33,6 +38,7 @@ public class DeveloperProfileController {
 
     @PutMapping("/developer/profile")
     @PreAuthorize("hasRole('DEVELOPER')")
+    @Operation(summary = "Update developer profile", description = "Updates profile details for the authenticated developer.")
     public ResponseEntity<?> updateProfile(@RequestBody DeveloperProfileRequest developerProfileRequest){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         String message = developerService.updateProfile(developerProfileRequest,email);
@@ -41,6 +47,7 @@ public class DeveloperProfileController {
 
     @GetMapping("/developer/profile/me")
     @PreAuthorize("hasRole('DEVELOPER')")
+    @Operation(summary = "Get current developer profile", description = "Retrieves the profile of the logged-in developer.")
     public ResponseEntity<?> getProfile(){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         DeveloperProfileResponse data = developerService.getProfile(email);
@@ -49,6 +56,7 @@ public class DeveloperProfileController {
 
     @PreAuthorize("hasRole('DEVELOPER')")
     @PostMapping(value = "/developer/profile/resume", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload developer resume", description = "Uploads a resume file to Cloudinary and links it to the developer's profile.")
     public ResponseEntity<?> uploadResume(@RequestParam("file") MultipartFile file){
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Please select a file to upload."));

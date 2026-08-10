@@ -2,6 +2,7 @@ package com.example.DevConnect.service;
 
 import com.example.DevConnect.dto.request.JobPostingRequest;
 import com.example.DevConnect.dto.response.JobPostingResponse;
+import com.example.DevConnect.dto.response.CustomPageResponse;
 import com.example.DevConnect.exception.ResourceNotFoundException;
 import com.example.DevConnect.exception.UnauthorizedException;
 import com.example.DevConnect.entity.JobPosting;
@@ -27,6 +28,7 @@ import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.util.SkillMatchUtil;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Lazy;
 
 import java.util.*;
@@ -55,6 +57,7 @@ public class JobPostingService {
     private DeveloperProfileRepository developerProfileRepository;
 
     @Transactional
+    @CacheEvict(value = "job-listings", allEntries = true)
     public void createJob(String email, JobPostingRequest jobPostingRequest) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
@@ -93,7 +96,7 @@ public class JobPostingService {
         jobPostingRepository.save(jobPosting);
     }
 
-    public Page<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
+    public CustomPageResponse<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
         List<Long> devSkillIds = new ArrayList<>();
         if (developerEmail != null) {
             User user = userRepository.findByEmail(developerEmail).orElse(null);
@@ -115,7 +118,7 @@ public class JobPostingService {
     }
 
     @Cacheable(value = "job-listings", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + (#skills != null ? #skills : '') + '-' + (#location != null ? #location.toLowerCase() : '') + '-' + (#jobType != null ? #jobType : '') + '-' + (#devSkillIds != null ? #devSkillIds : '')")
-    public Page<JobPostingResponse> getCachedActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, List<Long> devSkillIds) {
+    public CustomPageResponse<JobPostingResponse> getCachedActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, List<Long> devSkillIds) {
         Specification<JobPosting> spec = Specification.where((root, query, cb) -> 
             cb.equal(root.get("status"), JobStatus.ACTIVE)
         );
@@ -191,10 +194,28 @@ public class JobPostingService {
                 }
             }
 
-            return new PageImpl<>(pagedResponses, pageable, matchResponses.size());
+            return CustomPageResponse.<JobPostingResponse>builder()
+                    .content(pagedResponses)
+                    .pageNumber(pageable.getPageNumber())
+                    .pageSize(pageable.getPageSize())
+                    .totalElements(matchResponses.size())
+                    .totalPages((int) Math.ceil((double) matchResponses.size() / pageable.getPageSize()))
+                    .last((pageable.getOffset() + pageable.getPageSize()) >= matchResponses.size())
+                    .build();
         } else {
             Page<JobPosting> jobPostings = jobPostingRepository.findAll(spec, pageable);
-            return jobPostings.map(this::mapToResponse);
+            List<JobPostingResponse> content = new ArrayList<>();
+            for (JobPosting job : jobPostings.getContent()) {
+                content.add(mapToResponse(job));
+            }
+            return CustomPageResponse.<JobPostingResponse>builder()
+                    .content(content)
+                    .pageNumber(jobPostings.getNumber())
+                    .pageSize(jobPostings.getSize())
+                    .totalElements(jobPostings.getTotalElements())
+                    .totalPages(jobPostings.getTotalPages())
+                    .last(jobPostings.isLast())
+                    .build();
         }
     }
 
@@ -258,6 +279,7 @@ public class JobPostingService {
     }
 
     @Transactional
+    @CacheEvict(value = "job-listings", allEntries = true)
     public void updateJob(String email, Long id, JobPostingRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
@@ -344,5 +366,10 @@ public class JobPostingService {
         }
         return responseList;
 
+    }
+
+    @CacheEvict(value = "job-listings", allEntries = true)
+    public void evictJobListingsCache() {
+        // Intentionally empty: Spring Cache handles the eviction
     }
 }

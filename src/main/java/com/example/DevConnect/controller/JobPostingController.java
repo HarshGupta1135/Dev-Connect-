@@ -3,6 +3,7 @@ package com.example.DevConnect.controller;
 import com.example.DevConnect.dto.request.JobPostingRequest;
 import com.example.DevConnect.dto.response.ApiResponse;
 import com.example.DevConnect.dto.response.JobPostingResponse;
+import com.example.DevConnect.dto.response.CustomPageResponse;
 import com.example.DevConnect.enums.JobType;
 import com.example.DevConnect.service.JobPostingService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,8 +23,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Job Postings", description = "Endpoints for managing and querying job listings")
 public class JobPostingController {
 
     @Autowired
@@ -31,6 +36,7 @@ public class JobPostingController {
 
     @PostMapping("/recruiter/jobs")
     @PreAuthorize("hasRole('RECRUITER')")
+    @Operation(summary = "Create a new job posting", description = "Creates a new job listing associated with the authenticated recruiter's profile.")
     public ResponseEntity<?> createJob(@RequestBody JobPostingRequest jobPostingRequest){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         jobPostingService.createJob(email,jobPostingRequest);
@@ -79,11 +85,12 @@ public class JobPostingController {
             }
         }
 
-        Page<JobPostingResponse> activeJobs = jobPostingService.getActiveJobs(skills, location, type, pageable, developerEmail);
+        CustomPageResponse<JobPostingResponse> activeJobs = jobPostingService.getActiveJobs(skills, location, type, pageable, developerEmail);
         return ResponseEntity.ok(ApiResponse.success("Active jobs fetched successfully", activeJobs));
     }
 
     @GetMapping("/jobs/{id}")
+    @Operation(summary = "Get job posting by ID", description = "Retrieves details of a specific job posting by its ID.")
     public ResponseEntity<?> getJobById(@PathVariable Long id){
         JobPostingResponse job = jobPostingService.getJobById(id);
         return ResponseEntity.ok(ApiResponse.success("Job Fetched Successfully", job));
@@ -91,6 +98,7 @@ public class JobPostingController {
 
     @PutMapping("/recruiter/jobs/{id}")
     @PreAuthorize("hasRole('RECRUITER')")
+    @Operation(summary = "Update a job posting", description = "Updates details of a specific job posting. Validates recruiter ownership before updating.")
     public ResponseEntity<?> updateJob(@PathVariable Long id, @RequestBody JobPostingRequest jobPostingRequest) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         jobPostingService.updateJob(email, id, jobPostingRequest);
@@ -99,6 +107,7 @@ public class JobPostingController {
 
     @PatchMapping("/recruiter/jobs/{id}/close")
     @PreAuthorize("hasRole('RECRUITER')")
+    @Operation(summary = "Close a job posting", description = "Manually sets the status of a specific job posting to CLOSED.")
     public ResponseEntity<?> closeJobById(@PathVariable Long id){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         jobPostingService.closeJobById(email,id);
@@ -107,6 +116,7 @@ public class JobPostingController {
 
     @GetMapping("/recruiter/jobs")
     @PreAuthorize("hasRole('RECRUITER')")
+    @Operation(summary = "Get all jobs posted by recruiter", description = "Retrieves all job listings posted by the logged-in recruiter.")
     public ResponseEntity<?> getAllJobsByRecruiter(){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         List<JobPostingResponse> jobs = jobPostingService.getAllJobsByRecruiter(email);

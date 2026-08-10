@@ -10,14 +10,19 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
 @RestController
 @RequestMapping("/api")
+@Tag(name = "Skills Management", description = "Endpoints for retrieving and adding skills")
 public class SkillController {
 
     @Autowired
     private SkillService skillService;
 
     @GetMapping("/get/all/skills")
+    @Operation(summary = "Get all skills", description = "Retrieves all available skills in the database.")
     public ResponseEntity<?> getAllSkills(){
         List<Skill> allSkills = skillService.getAllSkills();
         return ResponseEntity.ok(ApiResponse.success("Skills Retrived Successfully", allSkills));
@@ -25,6 +30,7 @@ public class SkillController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/add/skills")
+    @Operation(summary = "Add skills (Admin Only)", description = "Allows administrators to seed the system with new skills.")
     public ResponseEntity<?> addSkills(@RequestBody List<Skill> skills){
         List<Skill> added = skillService.addSkills(skills);
         return ResponseEntity.ok(ApiResponse.success("Skills Added Successfully", added));

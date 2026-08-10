@@ -13,4 +13,5 @@ import java.util.List;
 public interface JobPostingRepository extends JpaRepository<JobPosting, Long>, JpaSpecificationExecutor<JobPosting> {
     List<JobPosting> findByRecruiter(RecruiterProfile recruiter);
     List<JobPosting> findByStatus(JobStatus status);
+    List<JobPosting> findByStatusAndExpiresAtBefore(JobStatus status, java.util.Date date);
 }
