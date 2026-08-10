@@ -1,0 +1,39 @@
+# Copy this file to application-local.yaml (git-ignored) and fill in real values.
+# application-local.yaml is loaded automatically because the default active profile is "local".
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/devconnect
+    username: root
+    password: CHANGE_ME
+
+  jpa:
+    show-sql: true
+
+  mail:
+    username: your.address@gmail.com
+    password: CHANGE_ME_GMAIL_APP_PASSWORD
+
+  data:
+    redis:
+      host: your-instance.upstash.io
+      port: 6379
+      password: CHANGE_ME
+      ssl:
+        enabled: true
+
+cloudinary:
+  cloud-name: CHANGE_ME
+  api-key: CHANGE_ME
+  api-secret: CHANGE_ME
+
+jwt:
+  # At least 32 characters (256 bits). Generate a fresh random value per environment.
+  secret: CHANGE_ME_AT_LEAST_32_CHARACTERS_LONG
+
+app:
+  admin:
+    bootstrap:
+      enabled: false
+      username: admin
+      email: admin@example.com
+      password: CHANGE_ME

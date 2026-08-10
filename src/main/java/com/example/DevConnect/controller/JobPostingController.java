@@ -6,8 +6,8 @@ import com.example.DevConnect.dto.response.JobPostingResponse;
 import com.example.DevConnect.dto.response.CustomPageResponse;
 import com.example.DevConnect.enums.JobType;
 import com.example.DevConnect.service.JobPostingService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -37,7 +37,7 @@ public class JobPostingController {
     @PostMapping("/recruiter/jobs")
     @PreAuthorize("hasRole('RECRUITER')")
     @Operation(summary = "Create a new job posting", description = "Creates a new job listing associated with the authenticated recruiter's profile.")
-    public ResponseEntity<?> createJob(@RequestBody JobPostingRequest jobPostingRequest){
+    public ResponseEntity<?> createJob(@Valid @RequestBody JobPostingRequest jobPostingRequest){
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         jobPostingService.createJob(email,jobPostingRequest);
         return ResponseEntity.ok(ApiResponse.success("Job Created Successfully",null));
@@ -99,7 +99,7 @@ public class JobPostingController {
     @PutMapping("/recruiter/jobs/{id}")
     @PreAuthorize("hasRole('RECRUITER')")
     @Operation(summary = "Update a job posting", description = "Updates details of a specific job posting. Validates recruiter ownership before updating.")
-    public ResponseEntity<?> updateJob(@PathVariable Long id, @RequestBody JobPostingRequest jobPostingRequest) {
+    public ResponseEntity<?> updateJob(@PathVariable Long id, @Valid @RequestBody JobPostingRequest jobPostingRequest) {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         jobPostingService.updateJob(email, id, jobPostingRequest);
         return ResponseEntity.ok(ApiResponse.success("Job Updated Successfully", null));

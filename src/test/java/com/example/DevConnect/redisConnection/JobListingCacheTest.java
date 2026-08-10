@@ -8,15 +8,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.Cache;
 import org.springframework.cache.CacheManager;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.Sort;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+/**
+ * Integration test (needs MySQL + Redis).
+ * <p>
+ * Intentionally NOT @Transactional: without a surrounding transaction the entities returned by
+ * the repository are detached, which is exactly how the endpoint behaves now that
+ * spring.jpa.open-in-view is disabled. If a read path ever touches a lazy collection outside
+ * its own transaction again, this test fails instead of production.
+ */
 @SpringBootTest
-@Transactional
 public class JobListingCacheTest {
+
+    private static final String UNSORTED_FIRST_PAGE_KEY = "0-10-UNSORTED----";
 
     @Autowired
     private JobPostingService jobPostingService;
@@ -24,46 +32,53 @@ public class JobListingCacheTest {
     @Autowired
     private CacheManager cacheManager;
 
-    @Autowired
-    private org.springframework.data.redis.core.RedisTemplate<String, Object> redisTemplate;
-
     @Test
     public void testJobListingCaching() {
-        // 1. Clear any existing cache to ensure a fresh test environment
         Cache cache = cacheManager.getCache("job-listings");
         assertNotNull(cache, "Cache 'job-listings' should be configured and active");
         cache.clear();
 
-        // Define parameters for a guest search (no filters, first page, size 10)
         PageRequest pageRequest = PageRequest.of(0, 10);
 
-        // 2. First execution: This should be a cache miss (queries MySQL database)
+        // 1. Cache miss - served from MySQL, and every response field is mapped here, so a
+        //    LazyInitializationException on requiredSkills would surface right now.
         long startTime = System.currentTimeMillis();
-        CustomPageResponse<JobPostingResponse> firstCallResult = jobPostingService.getActiveJobs(null, null, null, pageRequest, null);
+        CustomPageResponse<JobPostingResponse> firstCallResult =
+                jobPostingService.getActiveJobs(null, null, null, pageRequest, null);
         long firstCallDuration = System.currentTimeMillis() - startTime;
+
         assertNotNull(firstCallResult);
-        System.out.println("\n------------------------------------------------");
-        System.out.println("First call (Cache Miss - Database): " + firstCallDuration + " ms");
+        assertNotNull(firstCallResult.getContent());
+        firstCallResult.getContent().forEach(job -> assertNotNull(job.getRequiredSkills()));
+        System.out.println("First call (cache miss, database): " + firstCallDuration + " ms");
 
-        // Print all keys currently in Redis matching job-listings::*
-        java.util.Set<String> keys = redisTemplate.keys("job-listings::*");
-        System.out.println("ACTUAL KEYS IN REDIS: " + keys);
-
-        // 3. Verify Redis has stored the key
-        // The key format configured: "0-10----"
-        String expectedKey = "0-10----";
-        Cache.ValueWrapper cachedVal = cache.get(expectedKey);
-        assertNotNull(cachedVal, "Redis Cache should contain a value for key: " + expectedKey);
+        // 2. The entry is in Redis under the documented key.
+        Cache.ValueWrapper cachedVal = cache.get(UNSORTED_FIRST_PAGE_KEY);
+        assertNotNull(cachedVal, "Redis cache should contain a value for key: " + UNSORTED_FIRST_PAGE_KEY);
         assertNotNull(cachedVal.get(), "Cached value in Redis should not be null");
-        System.out.println("Successfully verified key '" + expectedKey + "' is present in Redis!");
 
-        // 4. Second execution: This should be a cache hit (retrieved from Redis)
+        // 3. Cache hit.
         startTime = System.currentTimeMillis();
-        CustomPageResponse<JobPostingResponse> secondCallResult = jobPostingService.getActiveJobs(null, null, null, pageRequest, null);
+        CustomPageResponse<JobPostingResponse> secondCallResult =
+                jobPostingService.getActiveJobs(null, null, null, pageRequest, null);
         long secondCallDuration = System.currentTimeMillis() - startTime;
         assertNotNull(secondCallResult);
-        System.out.println("Second call (Cache Hit - Redis): " + secondCallDuration + " ms");
-        System.out.println("Caching speedup ratio: " + String.format("%.2f", (double) firstCallDuration / Math.max(1, secondCallDuration)) + "x faster!");
-        System.out.println("------------------------------------------------\n");
+        assertEquals(firstCallResult.getTotalElements(), secondCallResult.getTotalElements());
+        System.out.println("Second call (cache hit, Redis): " + secondCallDuration + " ms");
+    }
+
+    @Test
+    public void differentSortOrdersDoNotShareACacheEntry() {
+        Cache cache = cacheManager.getCache("job-listings");
+        assertNotNull(cache);
+
+        jobPostingService.getActiveJobs(null, null, null, PageRequest.of(0, 10), null);
+        jobPostingService.getActiveJobs(null, null, null,
+                PageRequest.of(0, 10, Sort.by(Sort.Direction.ASC, "title")), null);
+
+        // The unsorted page and the title-sorted page are different results, so they must be
+        // cached separately - sharing one key served the wrong ordering to clients.
+        assertNotNull(cache.get(UNSORTED_FIRST_PAGE_KEY));
+        assertNotNull(cache.get("0-10-title: ASC----"));
     }
 }

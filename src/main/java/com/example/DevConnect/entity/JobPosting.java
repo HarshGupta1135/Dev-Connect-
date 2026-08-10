@@ -17,7 +17,15 @@ import java.util.Set;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "job_postings")
+@Table(
+        name = "job_postings",
+        indexes = {
+                // The public listing filters on status, and the scheduler on status + expiry.
+                @Index(name = "idx_job_status", columnList = "status"),
+                @Index(name = "idx_job_status_expires_at", columnList = "status, expires_at"),
+                @Index(name = "idx_job_recruiter", columnList = "recruiter_id")
+        }
+)
 public class JobPosting {
 
     @Id

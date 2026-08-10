@@ -3,6 +3,7 @@ package com.example.DevConnect.service;
 import com.example.DevConnect.dto.request.JobPostingRequest;
 import com.example.DevConnect.dto.response.JobPostingResponse;
 import com.example.DevConnect.dto.response.CustomPageResponse;
+import com.example.DevConnect.exception.BadRequestException;
 import com.example.DevConnect.exception.ResourceNotFoundException;
 import com.example.DevConnect.exception.UnauthorizedException;
 import com.example.DevConnect.entity.JobPosting;
@@ -26,7 +27,6 @@ import com.example.DevConnect.dto.response.JobPostingWithMatchResponse;
 import com.example.DevConnect.entity.DeveloperProfile;
 import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.util.SkillMatchUtil;
-import org.springframework.data.domain.PageImpl;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Lazy;
@@ -60,19 +60,21 @@ public class JobPostingService {
     @CacheEvict(value = "job-listings", allEntries = true)
     public void createJob(String email, JobPostingRequest jobPostingRequest) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+        // Required-on-create checks live here because the request DTO is shared with the
+        // partial-update endpoint, where a missing field means "leave unchanged".
+        requireText(jobPostingRequest.getTitle(), "Title is required");
+        requireText(jobPostingRequest.getDescription(), "Description is required");
+        if (jobPostingRequest.getJobType() == null) {
+            throw new BadRequestException("Job type is required");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
 
         RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Recruiter Profile Not Found. Please create a profile first."));
+                .orElseThrow(() -> new ResourceNotFoundException("Recruiter Profile Not Found. Please create a profile first."));
 
-        Set<Skill> skillSet = new HashSet<>();
-        if (jobPostingRequest.getRequiredSkills() != null) {
-            for (String skillName : jobPostingRequest.getRequiredSkills()) {
-                Skill skill = skillRepository.findByName(skillName)
-                        .orElseThrow(() -> new RuntimeException("Skill not found: " + skillName + ". Please contact admin to add it."));
-                skillSet.add(skill);
-            }
-        }
+        Set<Skill> skillSet = resolveSkills(jobPostingRequest.getRequiredSkills());
 
         Date expirationDate = jobPostingRequest.getExpiresAt();
         if (expirationDate == null) {
@@ -81,6 +83,10 @@ public class JobPostingService {
             expirationDate = calendar.getTime();
         }
 
+        // Without a default the job would be saved with status null: invisible in the public
+        // listing and impossible to apply to, with no error anywhere.
+        JobStatus status = jobPostingRequest.getStatus() != null ? jobPostingRequest.getStatus() : JobStatus.ACTIVE;
+
         JobPosting jobPosting = JobPosting.builder()
                 .recruiter(recruiterProfile)
                 .title(jobPostingRequest.getTitle())
@@ -88,7 +94,7 @@ public class JobPostingService {
                 .jobType(jobPostingRequest.getJobType())
                 .location(jobPostingRequest.getLocation())
                 .experienceRequired(jobPostingRequest.getExperienceRequired())
-                .status(jobPostingRequest.getStatus())
+                .status(status)
                 .requiredSkills(skillSet)
                 .expiresAt(expirationDate)
                 .build();
@@ -96,7 +102,9 @@ public class JobPostingService {
         jobPostingRepository.save(jobPosting);
     }
 
-    public CustomPageResponse<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
+    @Transactional(readOnly = true)
+    public CustomPageResponse<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType,
+                                                               Pageable pageable, String developerEmail) {
         List<Long> devSkillIds = new ArrayList<>();
         if (developerEmail != null) {
             User user = userRepository.findByEmail(developerEmail).orElse(null);
@@ -111,26 +119,38 @@ public class JobPostingService {
                 }
             }
         }
-        // Sort to ensure the order of skill IDs is always consistent for the cache key
+        // Sort so the same skill set always produces the same cache key.
         Collections.sort(devSkillIds);
 
-        return self.getCachedActiveJobs(skills, location, jobType, pageable, devSkillIds);
+        // Normalise the filters that the query treats case-insensitively, so logically
+        // identical requests share one cache entry instead of one per spelling.
+        List<String> normalisedSkills = normaliseSkills(skills);
+        String normalisedLocation = (location != null && !location.isBlank()) ? location.trim().toLowerCase() : null;
+
+        return self.getCachedActiveJobs(normalisedSkills, normalisedLocation, jobType, pageable,
+                devSkillIds.isEmpty() ? null : devSkillIds);
     }
 
-    @Cacheable(value = "job-listings", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + (#skills != null ? #skills : '') + '-' + (#location != null ? #location.toLowerCase() : '') + '-' + (#jobType != null ? #jobType : '') + '-' + (#devSkillIds != null ? #devSkillIds : '')")
-    public CustomPageResponse<JobPostingResponse> getCachedActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, List<Long> devSkillIds) {
-        Specification<JobPosting> spec = Specification.where((root, query, cb) -> 
+    /**
+     * The cache key must cover every input that changes the result - including the sort order,
+     * otherwise a request for ?sort=title,asc is served the page cached for createdAt,desc.
+     */
+    @Cacheable(value = "job-listings", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort + '-' + (#skills != null ? #skills : '') + '-' + (#location != null ? #location : '') + '-' + (#jobType != null ? #jobType : '') + '-' + (#devSkillIds != null ? #devSkillIds : '')")
+    @Transactional(readOnly = true)
+    public CustomPageResponse<JobPostingResponse> getCachedActiveJobs(List<String> skills, String location, JobType jobType,
+                                                                     Pageable pageable, List<Long> devSkillIds) {
+        Specification<JobPosting> spec = Specification.where((root, query, cb) ->
             cb.equal(root.get("status"), JobStatus.ACTIVE)
         );
 
         if (location != null && !location.trim().isEmpty()) {
-            spec = spec.and((root, query, cb) -> 
+            spec = spec.and((root, query, cb) ->
                 cb.like(cb.lower(root.get("location")), "%" + location.trim().toLowerCase() + "%")
             );
         }
 
         if (jobType != null) {
-            spec = spec.and((root, query, cb) -> 
+            spec = spec.and((root, query, cb) ->
                 cb.equal(root.get("jobType"), jobType)
             );
         }
@@ -139,22 +159,7 @@ public class JobPostingService {
             spec = spec.and((root, query, cb) -> {
                 query.distinct(true);
                 Join<JobPosting, Skill> skillJoin = root.join("requiredSkills");
-                
-                List<String> lowerSkills = new ArrayList<>();
-                for (String s : skills) {
-                    if (s != null) {
-                        String trimmed = s.trim().toLowerCase();
-                        if (!trimmed.isEmpty()) {
-                            lowerSkills.add(trimmed);
-                        }
-                    }
-                }
-                
-                if (lowerSkills.isEmpty()) {
-                    return null;
-                }
-                
-                return cb.lower(skillJoin.get("name")).in(lowerSkills);
+                return cb.lower(skillJoin.get("name")).in(skills);
             });
         }
 
@@ -177,21 +182,14 @@ public class JobPostingService {
                 matchResponses.add(mapToMatchResponse(job, matchPercentage));
             }
 
-            Collections.sort(matchResponses, new Comparator<JobPostingWithMatchResponse>() {
-                @Override
-                public int compare(JobPostingWithMatchResponse o1, JobPostingWithMatchResponse o2) {
-                    return Double.compare(o2.getMatchPercentage(), o1.getMatchPercentage());
-                }
-            });
+            matchResponses.sort(Comparator.comparingDouble(JobPostingWithMatchResponse::getMatchPercentage).reversed());
 
             int start = (int) pageable.getOffset();
             int end = Math.min((start + pageable.getPageSize()), matchResponses.size());
 
             List<JobPostingResponse> pagedResponses = new ArrayList<>();
             if (start < matchResponses.size()) {
-                for (int i = start; i < end; i++) {
-                    pagedResponses.add(matchResponses.get(i));
-                }
+                pagedResponses.addAll(matchResponses.subList(start, end));
             }
 
             return CustomPageResponse.<JobPostingResponse>builder()
@@ -225,8 +223,7 @@ public class JobPostingService {
                         .map(Skill::getName)
                         .collect(Collectors.toList()) : List.of();
 
-        String companyName = jobPosting.getRecruiter() != null && jobPosting.getRecruiter().getCompanyName() != null ?
-                jobPosting.getRecruiter().getCompanyName() : null;
+        String companyName = jobPosting.getRecruiter() != null ? jobPosting.getRecruiter().getCompanyName() : null;
 
         return JobPostingResponse.builder()
                 .id(jobPosting.getId())
@@ -253,8 +250,7 @@ public class JobPostingService {
             }
         }
 
-        String companyName = jobPosting.getRecruiter() != null && jobPosting.getRecruiter().getCompanyName() != null ?
-                jobPosting.getRecruiter().getCompanyName() : null;
+        String companyName = jobPosting.getRecruiter() != null ? jobPosting.getRecruiter().getCompanyName() : null;
 
         return JobPostingWithMatchResponse.builder()
                 .id(jobPosting.getId())
@@ -272,6 +268,7 @@ public class JobPostingService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public JobPostingResponse getJobById(Long id) {
         JobPosting jobPosting = jobPostingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Job Posting Not Found with ID: " + id));
@@ -297,9 +294,11 @@ public class JobPostingService {
 
         // Update fields if provided in request
         if (request.getTitle() != null) {
+            requireText(request.getTitle(), "Title cannot be blank");
             jobPosting.setTitle(request.getTitle());
         }
         if (request.getDescription() != null) {
+            requireText(request.getDescription(), "Description cannot be blank");
             jobPosting.setDescription(request.getDescription());
         }
         if (request.getJobType() != null) {
@@ -320,22 +319,20 @@ public class JobPostingService {
 
         // Update required skills if provided
         if (request.getRequiredSkills() != null) {
-            Set<Skill> skillSet = new HashSet<>();
-            for (String skillName : request.getRequiredSkills()) {
-                Skill skill = skillRepository.findByName(skillName)
-                        .orElseThrow(() -> new ResourceNotFoundException("Skill not found: " + skillName + ". Please contact admin to add it."));
-                skillSet.add(skill);
-            }
-            jobPosting.setRequiredSkills(skillSet);
+            jobPosting.setRequiredSkills(resolveSkills(request.getRequiredSkills()));
         }
 
         jobPostingRepository.save(jobPosting);
     }
 
     @Transactional
+    // Closing a job removes it from the public listing, so the cached listing must go too -
+    // otherwise the closed job keeps being served until the TTL expires.
+    @CacheEvict(value = "job-listings", allEntries = true)
     public void closeJobById(String email, Long id) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
 
         RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user).orElseThrow(
                 () -> new ResourceNotFoundException("Recruiter Profile Not Found. Please create a profile first"));
@@ -348,9 +345,10 @@ public class JobPostingService {
         }
 
         jobPosting.setStatus(JobStatus.CLOSED);
-
+        jobPostingRepository.save(jobPosting);
     }
 
+    @Transactional(readOnly = true)
     public List<JobPostingResponse> getAllJobsByRecruiter(String email) {
 
         User user = userRepository.findByEmail(email).
@@ -371,5 +369,42 @@ public class JobPostingService {
     @CacheEvict(value = "job-listings", allEntries = true)
     public void evictJobListingsCache() {
         // Intentionally empty: Spring Cache handles the eviction
+    }
+
+    private Set<Skill> resolveSkills(List<String> skillNames) {
+        Set<Skill> skillSet = new HashSet<>();
+        if (skillNames == null) {
+            return skillSet;
+        }
+        for (String skillName : skillNames) {
+            Skill skill = skillRepository.findByName(skillName)
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Skill not found: " + skillName + ". Please contact admin to add it."));
+            skillSet.add(skill);
+        }
+        return skillSet;
+    }
+
+    private List<String> normaliseSkills(List<String> skills) {
+        if (skills == null) {
+            return null;
+        }
+        List<String> normalised = new ArrayList<>();
+        for (String skill : skills) {
+            if (skill != null && !skill.isBlank()) {
+                normalised.add(skill.trim().toLowerCase());
+            }
+        }
+        if (normalised.isEmpty()) {
+            return null;
+        }
+        Collections.sort(normalised);
+        return normalised;
+    }
+
+    private void requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException(message);
+        }
     }
 }

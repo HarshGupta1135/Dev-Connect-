@@ -1,67 +1,70 @@
 package com.example.DevConnect.util;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.HashSet;
 import java.util.Set;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+/**
+ * Plain unit test - no Spring context, so it runs without MySQL, Redis or SMTP.
+ */
 public class SkillMatchUtilTest {
 
-    @Test
-    public void testCalculateMatchScore_standardCase() {
-        Set<Long> devSkills = new HashSet<>();
-        devSkills.add(1L);
-        devSkills.add(2L);
-        devSkills.add(3L);
-
-        Set<Long> jobSkills = new HashSet<>();
-        jobSkills.add(2L);
-        jobSkills.add(3L);
-        jobSkills.add(4L);
-        jobSkills.add(5L);
-
-        // Intersection: {2, 3} = 2
-        // Union: {1, 2, 3, 4, 5} = 5
-        // Expected: 2/5 * 100 = 40.0
-        double expected = 40.0;
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(expected, actual, 0.001);
+    private static Set<Long> ids(long... values) {
+        Set<Long> set = new HashSet<>();
+        for (long value : values) {
+            set.add(value);
+        }
+        return set;
     }
 
     @Test
-    public void testCalculateMatchScore_emptySets() {
-        Set<Long> devSkills = new HashSet<>();
-        Set<Long> jobSkills = new HashSet<>();
-
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(0.0, actual, 0.001);
+    public void matchIsShareOfRequiredSkillsCovered() {
+        // Job needs {2,3,4,5}; developer has 2 of them.
+        double actual = SkillMatchUtil.calculateMatchScore(ids(1, 2, 3), ids(2, 3, 4, 5));
+        assertEquals(50.0, actual, 0.001);
     }
 
     @Test
-    public void testCalculateMatchScore_nullInputs() {
-        double actual1 = SkillMatchUtil.calculateMatchScore(null, new HashSet<>());
-        double actual2 = SkillMatchUtil.calculateMatchScore(new HashSet<>(), null);
-        double actual3 = SkillMatchUtil.calculateMatchScore(null, null);
-
-        assertEquals(0.0, actual1, 0.001);
-        assertEquals(0.0, actual2, 0.001);
-        assertEquals(0.0, actual3, 0.001);
+    public void allRequiredSkillsCoveredScoresFullMatch() {
+        double actual = SkillMatchUtil.calculateMatchScore(ids(1, 2, 3), ids(2, 3));
+        assertEquals(100.0, actual, 0.001);
     }
 
     @Test
-    public void testCalculateMatchScore_noIntersection() {
-        Set<Long> devSkills = new HashSet<>();
-        devSkills.add(1L);
-        devSkills.add(2L);
+    public void extraDeveloperSkillsAreNotAPenalty() {
+        // Both developers cover every required skill; the broader skill set must not rank lower.
+        double focused = SkillMatchUtil.calculateMatchScore(ids(1, 2, 3), ids(1, 2, 3));
+        double broad = SkillMatchUtil.calculateMatchScore(ids(1, 2, 3, 4, 5, 6, 7, 8, 9, 10), ids(1, 2, 3));
+        assertEquals(focused, broad, 0.001);
+        assertEquals(100.0, broad, 0.001);
+    }
 
-        Set<Long> jobSkills = new HashSet<>();
-        jobSkills.add(3L);
-        jobSkills.add(4L);
+    @Test
+    public void partialCoverageRanksBelowFullCoverage() {
+        double partial = SkillMatchUtil.calculateMatchScore(ids(1), ids(1, 2, 3));
+        double full = SkillMatchUtil.calculateMatchScore(ids(1, 2, 3), ids(1, 2, 3));
+        assertTrue(partial < full);
+    }
 
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(0.0, actual, 0.001);
+    @Test
+    public void emptySetsScoreZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(new HashSet<>(), new HashSet<>()), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(ids(1, 2), new HashSet<>()), 0.001);
+    }
+
+    @Test
+    public void nullInputsScoreZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(null, new HashSet<>()), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(new HashSet<>(), null), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(null, null), 0.001);
+    }
+
+    @Test
+    public void noOverlapScoresZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(ids(1, 2), ids(3, 4)), 0.001);
     }
 }

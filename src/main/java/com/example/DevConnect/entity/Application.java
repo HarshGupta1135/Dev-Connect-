@@ -17,7 +17,20 @@ import java.util.Date;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Table(name = "applications")
+@Table(
+        name = "applications",
+        // Last line of defence against double applications: two concurrent requests can both
+        // pass the exists-check before either has committed.
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_application_developer_job",
+                columnNames = {"developer_id", "job_id"}
+        ),
+        indexes = {
+                // Used by the status-mail retry scheduler.
+                @Index(name = "idx_application_status_mail_sent", columnList = "status, mail_sent"),
+                @Index(name = "idx_application_job", columnList = "job_id")
+        }
+)
 public class Application {
 
     @Id

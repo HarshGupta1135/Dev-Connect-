@@ -6,8 +6,8 @@ DevConnect is a modern, high-performance job board designed to match developers 
 
 ## 🚀 Key Features
 
-* **Intelligent Skill-based Matching**: Features a Jaccard-similarity proximity search that ranks jobs based on matched skills rather than simple text lookups.
-* **Optimized Redis Caching**: Implements a high-efficiency caching strategy via Jackson JSON serialization, resolving standard Spring Page serialization limitations and achieving a **14.54x speedup** on repeated searches.
+* **Intelligent Skill-based Matching**: Ranks jobs by the share of a posting's required skills that the developer actually holds, so extra unrelated skills never push a strong candidate down the list.
+* **Optimized Redis Caching**: Implements a high-efficiency caching strategy via JSON serialization, resolving standard Spring Page serialization limitations and achieving a **~14x speedup** on repeated searches. The cache key covers page, size, sort order and every filter, so no request is ever served another request's page.
 * **Automatic Expiration Scheduler**: Executes a daily midnight cron job to close expired listings and automatically evict cached indices to prevent stale results.
 * **Secure Document Uploads**: Integrates with Cloudinary to handle multipart developer resume uploads safely.
 * **Swagger/OpenAPI Documentation**: Automatically generated interactive UI displaying and documenting all endpoints.
@@ -49,17 +49,34 @@ Once the application is running locally, you can view the fully interactive API 
    cd DevConnect
    ```
 
-2. **Configure environment variables**:
-   Create or modify `src/main/resources/application.properties` with your database, Redis, and Cloudinary credentials:
-   ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/devconnect
-   spring.datasource.username=YOUR_MYSQL_USERNAME
-   spring.datasource.password=YOUR_MYSQL_PASSWORD
-   
-   spring.data.redis.host=YOUR_REDIS_HOST
-   spring.data.redis.port=YOUR_REDIS_PORT
-   spring.data.redis.password=YOUR_REDIS_PASSWORD
+2. **Configure credentials**:
+   `application.yaml` contains no secrets - every credential is read from an environment
+   variable, with a git-ignored local file for development. Copy the example and fill it in:
+   ```bash
+   cp src/main/resources/application-local-example.yaml src/main/resources/application-local.yaml
    ```
+   `application-local.yaml` is git-ignored and is loaded automatically (the default active
+   profile is `local`). It needs your MySQL, Redis, Cloudinary and JWT values:
+   ```yaml
+   spring:
+     datasource:
+       password: YOUR_MYSQL_PASSWORD
+     data:
+       redis:
+         host: YOUR_REDIS_HOST
+         password: YOUR_REDIS_PASSWORD
+   jwt:
+     secret: A_RANDOM_STRING_OF_AT_LEAST_32_CHARACTERS
+   ```
+   In any other environment set the variables instead - `DB_URL`, `DB_USERNAME`,
+   `DB_PASSWORD`, `MAIL_USERNAME`, `MAIL_PASSWORD`, `REDIS_HOST`, `REDIS_PORT`,
+   `REDIS_PASSWORD`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`,
+   `CLOUDINARY_API_SECRET`, `JWT_SECRET`, `CORS_ALLOWED_ORIGINS` - and start with
+   `SPRING_PROFILES_ACTIVE=prod`. Startup fails fast if a required secret is missing.
+
+   The first admin account is not created automatically. To bootstrap one, set
+   `ADMIN_BOOTSTRAP_ENABLED=true` together with `ADMIN_BOOTSTRAP_USERNAME`,
+   `ADMIN_BOOTSTRAP_EMAIL` and a strong `ADMIN_BOOTSTRAP_PASSWORD`.
 
 3. **Run Maven tests**:
    Ensure all tests compile and pass successfully:
@@ -76,11 +93,22 @@ Once the application is running locally, you can view the fully interactive API 
 
 ## 🧪 Testing Verification
 
-The test suite validates the caching performance and automatic scheduling. A sample execution yields the following logs:
+The suite mixes fast unit tests with integration tests:
+
+* `SkillMatchUtilTest`, `JwtUtilTest`, `ApplicationServiceTest` - plain unit tests (Mockito where
+  needed). No MySQL, Redis or SMTP required.
+* `JobListingCacheTest`, `ApplicationUniqueConstraintTest`, `JobSchedulerServiceTest`,
+  `RedisConnectionTest`, `RejectedDevelopersTest` - integration tests that need a running MySQL
+  and Redis.
+* `MailTest` is `@Disabled`: it delivers a real email, so it is only run manually when
+  verifying SMTP credentials.
+
+```bash
+./mvnw clean test
+```
+
+Sample caching output:
 ```text
-First call (Cache Miss - Database): 407 ms
-ACTUAL KEYS IN REDIS: [job-listings::0-10----]
-Successfully verified key '0-10----' is present in Redis!
-Second call (Cache Hit - Redis): 28 ms
-Caching speedup ratio: 14.54x faster!
+First call (cache miss, database): 451 ms
+Second call (cache hit, Redis): 31 ms
 ```

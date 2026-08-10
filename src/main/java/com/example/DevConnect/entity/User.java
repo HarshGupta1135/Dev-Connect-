@@ -31,8 +31,8 @@ public class User {
     private String email;
 
     @CreationTimestamp
-    @Column(updatable = false)
-    private Date created_at;
+    @Column(name = "created_at", updatable = false)
+    private Date createdAt;
 
     private List<String> role;
 

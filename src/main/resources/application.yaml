@@ -2,25 +2,35 @@ spring:
   application:
     name: DevConnect
 
+  # Secrets live in application-local.yaml (git-ignored) for local runs,
+  # and come from environment variables in every other environment.
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+
   datasource:
-    url: jdbc:mysql://localhost:3306/devconnect
-    username: root
-    password: harsh@2005
+    url: ${DB_URL:jdbc:mysql://localhost:3306/devconnect}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
+    # Disabled on purpose: every read path opens its own transaction, so an
+    # accidental lazy load fails fast in tests instead of silently in production.
+    open-in-view: false
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    show-sql: ${JPA_SHOW_SQL:false}
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
+        # Batches the skill collections of a page of jobs into few queries instead of one per job.
+        default_batch_fetch_size: 16
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: gharshgupta490@gmail.com
-    password: miow mwcg dxxu qixh
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -30,13 +40,38 @@ spring:
 
   data:
     redis:
-      host: peaceful-reindeer-178199.upstash.io
-      port: 6379
-      password: gQAAAAAAArgXAAIgcDExN2E5OTgzZjI1YmY0YmRkYTY5MjAwZDRkMjEyYzY3Mg
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
       ssl:
-        enabled: true
+        enabled: ${REDIS_SSL:true}
+
+  servlet:
+    multipart:
+      max-file-size: ${MAX_UPLOAD_SIZE:5MB}
+      max-request-size: ${MAX_REQUEST_SIZE:6MB}
 
 cloudinary:
-  cloud-name: dnrrxjurs
-  api-key: 426587575266173
-  api-secret: HzzK27S0J_jsHrKoQqak6VWhPQE
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration-ms: ${JWT_EXPIRATION_MS:36000000}
+
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}
+  upload:
+    allowed-resume-types: >-
+      application/pdf,
+      application/msword,
+      application/vnd.openxmlformats-officedocument.wordprocessingml.document
+  admin:
+    # Bootstrap admin creation is opt-in: never enable it with a weak password.
+    bootstrap:
+      enabled: ${ADMIN_BOOTSTRAP_ENABLED:false}
+      username: ${ADMIN_BOOTSTRAP_USERNAME:}
+      email: ${ADMIN_BOOTSTRAP_EMAIL:}
+      password: ${ADMIN_BOOTSTRAP_PASSWORD:}

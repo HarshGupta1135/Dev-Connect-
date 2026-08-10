@@ -5,16 +5,16 @@ import com.example.DevConnect.dto.response.RecruiterProfileResponse;
 import com.example.DevConnect.dto.response.DeveloperProfileResponse;
 import com.example.DevConnect.entity.DeveloperProfile;
 import com.example.DevConnect.entity.RecruiterProfile;
-import com.example.DevConnect.entity.Skill;
 import com.example.DevConnect.entity.User;
+import com.example.DevConnect.exception.BadRequestException;
+import com.example.DevConnect.exception.DuplicateResourceException;
+import com.example.DevConnect.exception.ResourceNotFoundException;
 import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.repository.RecruiterProfileRepository;
 import com.example.DevConnect.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 @Service
 public class RecruiterProfileService {
@@ -31,10 +31,16 @@ public class RecruiterProfileService {
     @Transactional
     public String createProfile(RecruiterProfileRequest recruiterProfileRequest, String email) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+        // Required only on create; the update endpoint reuses this DTO for partial updates.
+        if (recruiterProfileRequest.getFullName() == null || recruiterProfileRequest.getFullName().isBlank()) {
+            throw new BadRequestException("Full name is required");
+        }
 
-        if(recruiterProfileRepository.findByUser(user).isPresent()){
-            throw new RuntimeException("Profile already exists for this user");
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
+
+        if (recruiterProfileRepository.findByUser(user).isPresent()) {
+            throw new DuplicateResourceException("Profile already exists for this user");
         }
 
         RecruiterProfile recruiterProfile = RecruiterProfile.builder()
@@ -52,12 +58,14 @@ public class RecruiterProfileService {
 
     }
 
+    @Transactional(readOnly = true)
     public RecruiterProfileResponse getProfile(String email) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
 
         RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Profile Not Found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Profile Not Found"));
 
         return RecruiterProfileResponse.builder()
                 .id(recruiterProfile.getId())
@@ -73,28 +81,29 @@ public class RecruiterProfileService {
     @Transactional
     public void updateProfile(RecruiterProfileRequest recruiterProfileRequest, String email) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
 
         RecruiterProfile recruiterProfile = recruiterProfileRepository.findByUser(user)
-                .orElseThrow(() -> new RuntimeException("Profile does not exist for this user"));
+                .orElseThrow(() -> new ResourceNotFoundException("Profile does not exist for this user"));
 
-        if(recruiterProfileRequest.getFullName() != null && !recruiterProfileRequest.getFullName().isBlank()){
+        if (recruiterProfileRequest.getFullName() != null && !recruiterProfileRequest.getFullName().isBlank()) {
             recruiterProfile.setFullName(recruiterProfileRequest.getFullName());
         }
 
-        if(recruiterProfileRequest.getCompanyName() != null && !recruiterProfileRequest.getCompanyName().isBlank()){
+        if (recruiterProfileRequest.getCompanyName() != null && !recruiterProfileRequest.getCompanyName().isBlank()) {
             recruiterProfile.setCompanyName(recruiterProfileRequest.getCompanyName());
         }
 
-        if(recruiterProfileRequest.getDescription() != null && !recruiterProfileRequest.getDescription().isBlank()){
+        if (recruiterProfileRequest.getDescription() != null && !recruiterProfileRequest.getDescription().isBlank()) {
             recruiterProfile.setCompanyDesc(recruiterProfileRequest.getDescription());
         }
 
-        if(recruiterProfileRequest.getLocation() != null && !recruiterProfileRequest.getLocation().isBlank()){
+        if (recruiterProfileRequest.getLocation() != null && !recruiterProfileRequest.getLocation().isBlank()) {
             recruiterProfile.setLocation(recruiterProfileRequest.getLocation());
         }
 
-        if(recruiterProfileRequest.getWebsite() != null && !recruiterProfileRequest.getWebsite().isBlank()){
+        if (recruiterProfileRequest.getWebsite() != null && !recruiterProfileRequest.getWebsite().isBlank()) {
             recruiterProfile.setWebsite(recruiterProfileRequest.getWebsite());
         }
 
@@ -102,27 +111,17 @@ public class RecruiterProfileService {
 
     }
 
+    @Transactional(readOnly = true)
     public DeveloperProfileResponse getDeveloperProfile(String email, Long id) {
 
-        User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
+        // Confirms the caller still exists before exposing candidate data.
+        userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
 
         DeveloperProfile profile = developerProfileRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Profile does not exist with this id"));
+                .orElseThrow(() -> new ResourceNotFoundException("Profile does not exist with this id"));
 
-        List<String> skillNames = profile.getSkills() != null
-                ? profile.getSkills().stream().map(Skill::getName).toList()
-                : List.of();
-
-        return DeveloperProfileResponse.builder()
-                .id(profile.getId())
-                .fullName(profile.getFullName())
-                .bio(profile.getBio())
-                .location(profile.getLocation())
-                .yearsExp(profile.getYearsExp())
-                .resumeUrl(profile.getResumeUrl())
-                .linkedinUrl(profile.getLinkedinUrl())
-                .skills(skillNames)
-                .build();
+        return DeveloperProfileService.mapToResponse(profile);
 
     }
 }

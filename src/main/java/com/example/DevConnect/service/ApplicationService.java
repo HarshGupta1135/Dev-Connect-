@@ -4,11 +4,15 @@ import com.example.DevConnect.dto.request.ApplicationRequest;
 import com.example.DevConnect.entity.*;
 import com.example.DevConnect.enums.ApplicationStatus;
 import com.example.DevConnect.enums.JobStatus;
+import com.example.DevConnect.event.ApplicationStatusChangedEvent;
+import com.example.DevConnect.event.ApplicationSubmittedEvent;
+import com.example.DevConnect.exception.BadRequestException;
 import com.example.DevConnect.exception.DuplicateApplicationException;
 import com.example.DevConnect.exception.ResourceNotFoundException;
 import com.example.DevConnect.exception.UnauthorizedException;
 import com.example.DevConnect.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -36,10 +40,7 @@ public class ApplicationService {
     private RecruiterProfileRepository recruiterProfileRepository;
 
     @Autowired
-    private JobPostingService jobPostingService;
-
-    @Autowired
-    private EmailService emailService;
+    private ApplicationEventPublisher eventPublisher;
 
     @Transactional
     public void applyForJob(String email, ApplicationRequest applicationRequest) {
@@ -54,11 +55,11 @@ public class ApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Job Posting Not Found"));
 
         if (jobPosting.getStatus() != JobStatus.ACTIVE) {
-            throw new RuntimeException("Cannot apply to a closed or inactive job posting");
+            throw new BadRequestException("Cannot apply to a closed or inactive job posting");
         }
 
         if (jobPosting.getExpiresAt() != null && jobPosting.getExpiresAt().before(new Date())) {
-            throw new RuntimeException("Cannot apply to an expired job posting");
+            throw new BadRequestException("Cannot apply to an expired job posting");
         }
 
         if (applicationRepository.existsByDeveloperAndJob(developerProfile, jobPosting)) {
@@ -74,19 +75,16 @@ public class ApplicationService {
 
         applicationRepository.save(application);
 
-        String developerName = developerProfile.getFullName();
-        if (developerName == null || developerName.trim().isEmpty()) {
-            developerName = user.getUserName();
-        }
-        if (developerName == null || developerName.trim().isEmpty()) {
-            developerName = "Candidate";
-        }
-        String jobTitle = jobPosting.getTitle();
-        String companyName = jobPosting.getRecruiter().getCompanyName();
-
-        emailService.sendApplicationConfirmationEmail(email, developerName, jobTitle, companyName);
+        // Delivered after commit so no confirmation can describe a rolled-back application.
+        eventPublisher.publishEvent(new ApplicationSubmittedEvent(
+                email,
+                ApplicationMailService.resolveDeveloperName(developerProfile.getFullName(), user.getUserName()),
+                jobPosting.getTitle(),
+                jobPosting.getRecruiter().getCompanyName()
+        ));
     }
 
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getJobApplications(String email) {
 
         User user = userRepository.findByEmail(email)
@@ -103,10 +101,6 @@ public class ApplicationService {
         }
 
         return responseList;
-
-//        return list.stream()
-//                .map(this::mapToResponse)
-//                .collect(Collectors.toList());
     }
 
     private ApplicationResponse mapToResponse(Application application) {
@@ -121,6 +115,7 @@ public class ApplicationService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getAllApplicantsById(String email, Long jobId) {
 
         User user = userRepository.findByEmail(email)
@@ -140,7 +135,7 @@ public class ApplicationService {
         List<Application> byJob = applicationRepository.findByJob(jobPosting);
 
         List<ApplicationResponse> list = new ArrayList<>();
-        for(Application application : byJob){
+        for (Application application : byJob) {
             list.add(mapToResponse(application));
         }
         return list;
@@ -148,6 +143,11 @@ public class ApplicationService {
 
     @Transactional
     public void setApplicationStatus(String email, Long id, ApplicationStatus applicationStatus) {
+
+        // Validate the target status before touching anything else.
+        if (applicationStatus != ApplicationStatus.SHORTLISTED && applicationStatus != ApplicationStatus.REJECTED) {
+            throw new BadRequestException("Invalid status update. Status can only be updated to SHORTLISTED or REJECTED");
+        }
 
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
@@ -163,27 +163,12 @@ public class ApplicationService {
             throw new UnauthorizedException("You are not authorized to update this application's status");
         }
 
-        // Validate that new status is either SHORTLISTED or REJECTED
-        if (applicationStatus != ApplicationStatus.SHORTLISTED && applicationStatus != ApplicationStatus.REJECTED) {
-            throw new RuntimeException("Invalid status update. Status can only be updated to SHORTLISTED or REJECTED");
-        }
-
         application.setStatus(applicationStatus);
-        application.setMailSent(true); // Mark as sent to prevent duplicate scheduler runs
+        // mailSent stays false until the mail is actually accepted by the mail server; the
+        // listener sets it after a successful send and the scheduler retries what failed.
+        application.setMailSent(false);
         applicationRepository.save(application);
 
-        // Get applicant details
-        User applicantUser = application.getDeveloper().getUser();
-        String developerName = application.getDeveloper().getFullName();
-        if (developerName == null || developerName.trim().isEmpty()) {
-            developerName = applicantUser.getUserName();
-        }
-        if (developerName == null || developerName.trim().isEmpty()) {
-            developerName = "Candidate";
-        }
-        String jobTitle = application.getJob().getTitle();
-
-        // Send status email asynchronously
-        emailService.sendStatusUpdateEmail(applicantUser.getEmail(), developerName, jobTitle, applicationStatus.name());
+        eventPublisher.publishEvent(new ApplicationStatusChangedEvent(application.getId()));
     }
 }

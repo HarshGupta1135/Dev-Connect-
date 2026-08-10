@@ -33,3 +33,9 @@ build/
 .vscode/
 
 .vscode/
+
+### Local secrets (never commit) ###
+application-local.yaml
+application-local.yml
+application-local.properties
+!**/application-local-example.yaml
