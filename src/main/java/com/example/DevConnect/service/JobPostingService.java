@@ -26,12 +26,18 @@ import com.example.DevConnect.entity.DeveloperProfile;
 import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.util.SkillMatchUtil;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.annotation.Lazy;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
 public class JobPostingService {
+
+    @Autowired
+    @Lazy
+    private JobPostingService self;
 
     @Autowired
     private UserRepository userRepository;
@@ -88,6 +94,28 @@ public class JobPostingService {
     }
 
     public Page<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
+        List<Long> devSkillIds = new ArrayList<>();
+        if (developerEmail != null) {
+            User user = userRepository.findByEmail(developerEmail).orElse(null);
+            if (user != null) {
+                DeveloperProfile devProfile = developerProfileRepository.findByUser(user).orElse(null);
+                if (devProfile != null && devProfile.getSkills() != null) {
+                    for (Skill skill : devProfile.getSkills()) {
+                        if (skill != null && skill.getId() != null) {
+                            devSkillIds.add(skill.getId());
+                        }
+                    }
+                }
+            }
+        }
+        // Sort to ensure the order of skill IDs is always consistent for the cache key
+        Collections.sort(devSkillIds);
+
+        return self.getCachedActiveJobs(skills, location, jobType, pageable, devSkillIds);
+    }
+
+    @Cacheable(value = "job-listings", key = "#pageable.pageNumber + '-' + #pageable.pageSize + '-' + (#skills != null ? #skills : '') + '-' + (#location != null ? #location.toLowerCase() : '') + '-' + (#jobType != null ? #jobType : '') + '-' + (#devSkillIds != null ? #devSkillIds : '')")
+    public Page<JobPostingResponse> getCachedActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, List<Long> devSkillIds) {
         Specification<JobPosting> spec = Specification.where((root, query, cb) -> 
             cb.equal(root.get("status"), JobStatus.ACTIVE)
         );
@@ -127,21 +155,8 @@ public class JobPostingService {
             });
         }
 
-        // It gives skills id list of a developer
-        if (developerEmail != null) {
-            User user = userRepository.findByEmail(developerEmail).orElse(null);
-            Set<Long> devSkillIds = new HashSet<>();
-            if (user != null) {
-                DeveloperProfile devProfile = developerProfileRepository.findByUser(user).orElse(null);
-                if (devProfile != null && devProfile.getSkills() != null) {
-                    for (Skill skill : devProfile.getSkills()) {
-                        if (skill != null && skill.getId() != null) {
-                            devSkillIds.add(skill.getId());
-                        }
-                    }
-                }
-            }
-
+        if (devSkillIds != null && !devSkillIds.isEmpty()) {
+            Set<Long> devSkillIdSet = new HashSet<>(devSkillIds);
             List<JobPosting> allActiveJobs = jobPostingRepository.findAll(spec);
             List<JobPostingWithMatchResponse> matchResponses = new ArrayList<>();
 
@@ -155,7 +170,7 @@ public class JobPostingService {
                     }
                 }
 
-                double matchPercentage = SkillMatchUtil.calculateMatchScore(devSkillIds, jobSkillIds);
+                double matchPercentage = SkillMatchUtil.calculateMatchScore(devSkillIdSet, jobSkillIds);
                 matchResponses.add(mapToMatchResponse(job, matchPercentage));
             }
 

@@ -13,7 +13,7 @@ public class RedisConnect {
 
     @Test
     public void check(){
-        redisTemplate.opsForValue().set("name","harsh");
+        redisTemplate.opsForValue().set("name","Harsh");
         Object name = redisTemplate.opsForValue().get("name");
         int a = 1;
     }
