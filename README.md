@@ -49,17 +49,32 @@ Once the application is running locally, you can view the fully interactive API 
    cd DevConnect
    ```
 
-2. **Configure environment variables**:
-   Create or modify `src/main/resources/application.properties` with your database, Redis, and Cloudinary credentials:
-   ```properties
-   spring.datasource.url=jdbc:mysql://localhost:3306/devconnect
-   spring.datasource.username=YOUR_MYSQL_USERNAME
-   spring.datasource.password=YOUR_MYSQL_PASSWORD
-   
-   spring.data.redis.host=YOUR_REDIS_HOST
-   spring.data.redis.port=YOUR_REDIS_PORT
-   spring.data.redis.password=YOUR_REDIS_PASSWORD
+2. **Configure credentials**:
+   `application.yaml` holds no secrets. Every credential is read from a `.env` file in the
+   project root, which is git-ignored. Copy the template and fill it in:
+   ```bash
+   cp .env.example .env
    ```
+   ```properties
+   DB_PASSWORD=your-mysql-password
+   MAIL_USERNAME=your.address@gmail.com
+   MAIL_PASSWORD=your-gmail-app-password
+   REDIS_HOST=your-redis-host
+   REDIS_PASSWORD=your-redis-password
+   CLOUDINARY_CLOUD_NAME=your-cloud-name
+   CLOUDINARY_API_KEY=your-api-key
+   CLOUDINARY_API_SECRET=your-api-secret
+   JWT_SECRET=a-random-string-of-at-least-32-characters
+   ```
+   In a deployed environment, set these as real environment variables instead — they take
+   precedence over the file, and no `.env` is needed.
+
+   If a value is missing from both, the app refuses to start rather than falling back to a
+   default. Note that the error may be a downstream one: a missing `DB_PASSWORD` surfaces as
+   `Access denied for user 'root'`, because Spring leaves an unresolved placeholder as literal
+   text when binding configuration properties. A missing `JWT_SECRET` reports itself directly
+   as `Could not resolve placeholder 'jwt.secret'`. If startup fails on credentials, check
+   `.env` against `.env.example` first.
 
 3. **Run Maven tests**:
    Ensure all tests compile and pass successfully:

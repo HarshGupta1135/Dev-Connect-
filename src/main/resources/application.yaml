@@ -2,10 +2,16 @@ spring:
   application:
     name: DevConnect
 
+  # Secrets are read from the git-ignored .env file in the project root.
+  # "optional:" keeps startup working where real environment variables are used instead,
+  # and OS environment variables take precedence over the file.
+  config:
+    import: optional:file:./.env[.properties]
+
   datasource:
-    url: jdbc:mysql://localhost:3306/devconnect
-    username: root
-    password: harsh@2005
+    url: ${DB_URL:jdbc:mysql://localhost:3306/devconnect}
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -17,10 +23,10 @@ spring:
         dialect: org.hibernate.dialect.MySQLDialect
 
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: gharshgupta490@gmail.com
-    password: miow mwcg dxxu qixh
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -30,13 +36,16 @@ spring:
 
   data:
     redis:
-      host: peaceful-reindeer-178199.upstash.io
-      port: 6379
-      password: gQAAAAAAArgXAAIgcDExN2E5OTgzZjI1YmY0YmRkYTY5MjAwZDRkMjEyYzY3Mg
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD}
       ssl:
-        enabled: true
+        enabled: ${REDIS_SSL:true}
 
 cloudinary:
-  cloud-name: dnrrxjurs
-  api-key: 426587575266173
-  api-secret: HzzK27S0J_jsHrKoQqak6VWhPQE
+  cloud-name: ${CLOUDINARY_CLOUD_NAME}
+  api-key: ${CLOUDINARY_API_KEY}
+  api-secret: ${CLOUDINARY_API_SECRET}
+
+jwt:
+  secret: ${JWT_SECRET}
