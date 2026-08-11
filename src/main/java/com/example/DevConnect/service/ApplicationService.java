@@ -114,8 +114,10 @@ public class ApplicationService {
 
     private ApplicationResponse mapToResponse(Application application) {
         String jobTitle = (application.getJob() != null) ? application.getJob().getTitle() : null;
+        Long jobId = (application.getJob() != null) ? application.getJob().getId() : null;
         return ApplicationResponse.builder()
                 .id(application.getId())
+                .jobId(jobId)
                 .jobTitle(jobTitle)
                 .status(application.getStatus())
                 .coverNote(application.getCoverNote())

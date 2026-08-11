@@ -14,6 +14,14 @@ import java.util.Date;
 @Builder
 public class ApplicationResponse {
     private Long id;
+
+    /**
+     * The posting applied to. Without it a client can only match applications by
+     * title, which conflates a reposted role with the original — and then treats a
+     * decision on one posting as if it applied to the other.
+     */
+    private Long jobId;
+
     private String jobTitle;
     private ApplicationStatus status;
     private String coverNote;

@@ -26,7 +26,7 @@ export default function JobDetail() {
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [applied, setApplied] = useState(false);
+  const [myApplication, setMyApplication] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [coverNote, setCoverNote] = useState('');
   const [sending, setSending] = useState(false);
@@ -48,37 +48,39 @@ export default function JobDetail() {
   }, [id]);
 
   /*
-   * There is no "did I apply to job X" endpoint, and the applications list
-   * returns the job title rather than its id, so the check matches on title.
-   * A duplicate attempt is still refused by the API, which is handled below.
+   * There is no "did I apply to job X" endpoint, so this scans the developer's own
+   * applications for one against this posting.
+   *
+   * Matched on jobId, not title: a recruiter reposting the same role creates a
+   * genuinely separate posting, and a decision on the earlier one says nothing about
+   * this one. Matching on title used to block a rejected candidate from ever applying
+   * to that role again.
    */
   useEffect(() => {
-    if (!isDeveloper || !job?.title) return;
+    if (!isDeveloper || !job?.id) return;
     fetchMyApplications()
       .then((applications) => {
-        const already = (applications || []).some(
-          (application) => application.jobTitle?.trim().toLowerCase() === job.title.trim().toLowerCase()
-        );
-        setApplied(already);
+        const mine = (applications || []).find((application) => application.jobId === job.id);
+        setMyApplication(mine || null);
       })
       .catch(() => {
         /* Not critical: the Apply button stays available and the API decides. */
       });
-  }, [isDeveloper, job?.title]);
+  }, [isDeveloper, job?.id]);
 
   const submitApplication = async () => {
     setSending(true);
     try {
       await applyToJob({ jobId: job.id, coverNote: coverNote.trim() || null });
       toast.success('Application submitted. Check your email for confirmation.');
-      setApplied(true);
+      setMyApplication({ jobId: job.id, status: 'APPLIED' });
       setModalOpen(false);
       setCoverNote('');
     } catch (error) {
       const message = errorMessage(error, 'Could not submit your application.');
       toast.error(message);
       if (/already applied/i.test(message)) {
-        setApplied(true);
+        setMyApplication({ jobId: job.id, status: 'APPLIED' });
         setModalOpen(false);
       }
       if (/profile not found/i.test(message)) {
@@ -116,6 +118,9 @@ export default function JobDetail() {
   const expiresIn = daysUntil(job.expiresAt);
   const isClosed = job.status !== 'ACTIVE';
   const isExpired = isJobExpired(job);
+  // Scoped to this posting: a decision on any other one, including an earlier version
+  // of the same role, does not stand in the way here.
+  const applied = Boolean(myApplication);
   const canApply = isDeveloper && !isClosed && !isExpired && !applied;
 
   return (
@@ -195,9 +200,17 @@ export default function JobDetail() {
             )}
 
             {applied && (
-              <div className="row" style={{ gap: 10 }}>
-                <span className="badge badge--applied">Applied</span>
-                <Link to="/developer/dashboard" className="small muted">Track it in your dashboard →</Link>
+              <div className="stack" style={{ gap: 6 }}>
+                <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+                  {/* The real decision on this posting, rather than a flat "Applied". */}
+                  <StatusBadge status={myApplication.status || 'APPLIED'} />
+                  <Link to="/developer/dashboard" className="small muted">Track it in your dashboard →</Link>
+                </div>
+                {myApplication.status === 'REJECTED' && (
+                  <span className="tiny faint">
+                    This decision covers this posting only — you can apply again if the role is reposted.
+                  </span>
+                )}
               </div>
             )}
 
