@@ -36,6 +36,29 @@ export function daysUntil(value) {
   return Math.ceil((date.getTime() - Date.now()) / 86400000);
 }
 
+/** True once the closing date has passed, whatever the stored status says. */
+export function isJobExpired(job) {
+  const days = daysUntil(job?.expiresAt);
+  return days !== null && days < 0;
+}
+
+/**
+ * What the posting actually is right now, rather than what its row says.
+ *
+ * The backend closes expired postings from a midnight cron, so a job stays
+ * ACTIVE in the database for up to a day after its closing date — longer if the
+ * app was not running at midnight. Applying is already refused in that window,
+ * so showing "Active" would contradict the rest of the page.
+ *
+ * A recruiter closing a job early still wins over the date: that is CLOSED, not
+ * expired.
+ */
+export function effectiveJobStatus(job) {
+  if (!job?.status) return job?.status;
+  if (String(job.status).toUpperCase() !== 'ACTIVE') return job.status;
+  return isJobExpired(job) ? 'EXPIRED' : 'ACTIVE';
+}
+
 export function titleCase(value) {
   if (!value) return '';
   return value.charAt(0) + value.slice(1).toLowerCase();

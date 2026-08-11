@@ -1,7 +1,14 @@
 import { Link } from 'react-router-dom';
 import MatchRing from './MatchRing';
 import StatusBadge from './StatusBadge';
-import { daysUntil, excerpt, experienceLabel, relativeTime, titleCase } from '../utils/format';
+import {
+  daysUntil,
+  effectiveJobStatus,
+  excerpt,
+  experienceLabel,
+  relativeTime,
+  titleCase,
+} from '../utils/format';
 
 export default function JobCard({ job, showStatus = false }) {
   const expiresIn = daysUntil(job.expiresAt);
@@ -24,7 +31,7 @@ export default function JobCard({ job, showStatus = false }) {
         {job.jobType && <span className="chip">{titleCase(job.jobType)}</span>}
         {job.location && <span className="chip">{job.location}</span>}
         <span className="chip">{experienceLabel(job.experienceRequired)}</span>
-        {showStatus && <StatusBadge status={job.status} />}
+        {showStatus && <StatusBadge status={effectiveJobStatus(job)} />}
         {closingSoon && (
           <span className="badge badge--warn">
             {expiresIn === 0 ? 'Closes today' : `${expiresIn}d left`}

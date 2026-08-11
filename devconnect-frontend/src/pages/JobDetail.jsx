@@ -9,7 +9,15 @@ import StatusBadge from '../components/StatusBadge';
 import { Skeleton } from '../components/Skeleton';
 import { ReadingProgress } from '../components/ScrollHelpers';
 import { useAuth } from '../context/AuthContext';
-import { daysUntil, formatDate, experienceLabel, relativeTime, titleCase } from '../utils/format';
+import {
+  daysUntil,
+  effectiveJobStatus,
+  experienceLabel,
+  formatDate,
+  isJobExpired,
+  relativeTime,
+  titleCase,
+} from '../utils/format';
 
 export default function JobDetail() {
   const { id } = useParams();
@@ -107,7 +115,7 @@ export default function JobDetail() {
 
   const expiresIn = daysUntil(job.expiresAt);
   const isClosed = job.status !== 'ACTIVE';
-  const isExpired = expiresIn !== null && expiresIn < 0;
+  const isExpired = isJobExpired(job);
   const canApply = isDeveloper && !isClosed && !isExpired && !applied;
 
   return (
@@ -124,7 +132,7 @@ export default function JobDetail() {
               <span className="eyebrow">{job.companyName || 'Company undisclosed'}</span>
               <h1 style={{ fontSize: 'clamp(1.7rem, 3.6vw, 2.5rem)' }}>{job.title}</h1>
               <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 4 }}>
-                <StatusBadge status={job.status} />
+                <StatusBadge status={effectiveJobStatus(job)} />
                 {job.jobType && <span className="chip">{titleCase(job.jobType)}</span>}
                 {job.location && <span className="chip">{job.location}</span>}
                 <span className="chip">{experienceLabel(job.experienceRequired)}</span>

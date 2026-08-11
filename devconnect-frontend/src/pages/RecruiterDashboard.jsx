@@ -16,7 +16,14 @@ import EmptyState from '../components/EmptyState';
 import Field from '../components/Field';
 import StatusBadge from '../components/StatusBadge';
 import { RowSkeleton } from '../components/Skeleton';
-import { experienceLabel, formatDate, relativeTime, titleCase } from '../utils/format';
+import {
+  effectiveJobStatus,
+  experienceLabel,
+  formatDate,
+  isJobExpired,
+  relativeTime,
+  titleCase,
+} from '../utils/format';
 import { useAuth } from '../context/AuthContext';
 
 const TABS = [
@@ -130,10 +137,13 @@ export default function RecruiterDashboard() {
   const stats = useMemo(() => {
     const list = jobs || [];
     const applicants = Object.values(counts).reduce((total, value) => total + value, 0);
+    // An expired posting still stored as ACTIVE is not accepting applications, so it
+    // counts with the closed ones — matching the badge on its row.
+    const open = list.filter((job) => job.status === 'ACTIVE' && !isJobExpired(job));
     return {
       total: list.length,
-      active: list.filter((job) => job.status === 'ACTIVE').length,
-      closed: list.filter((job) => job.status !== 'ACTIVE').length,
+      active: open.length,
+      closed: list.length - open.length,
       applicants,
     };
   }, [jobs, counts]);
@@ -222,7 +232,7 @@ export default function RecruiterDashboard() {
                     <Link to={`/jobs/${job.id}`} style={{ fontWeight: 650, fontSize: '1rem' }}>
                       {job.title}
                     </Link>
-                    <StatusBadge status={job.status} />
+                    <StatusBadge status={effectiveJobStatus(job)} />
                   </div>
                   <span className="tiny faint mono">
                     {job.jobType ? `${titleCase(job.jobType)} · ` : ''}

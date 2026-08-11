@@ -4,6 +4,9 @@ const LABELS = {
   REJECTED: 'Not selected',
   ACTIVE: 'Active',
   CLOSED: 'Closed',
+  // Not a backend status: derived by effectiveJobStatus() for a posting still
+  // stored as ACTIVE whose closing date has passed.
+  EXPIRED: 'Expired',
 };
 
 const TONES = {
@@ -12,6 +15,7 @@ const TONES = {
   REJECTED: 'rejected',
   ACTIVE: 'active',
   CLOSED: 'closed',
+  EXPIRED: 'warn',
 };
 
 export default function StatusBadge({ status }) {
