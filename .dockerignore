@@ -1,0 +1,36 @@
+# Everything here is excluded from the build context — the snapshot of this
+# directory that gets sent to the Docker daemon before the build starts.
+
+# The React client shares this repo but has no place in the backend image, and its
+# node_modules alone is a few hundred megabytes of context to transfer on every
+# build.
+devconnect-frontend/
+
+# Rebuilt inside the image; a host target/ would only be stale.
+target/
+
+# Secrets never belong in an image layer. In a container the app reads real
+# environment variables instead, and the .env import in application.yaml is marked
+# optional: so its absence is not an error.
+.env
+.env.local
+
+.git/
+.gitignore
+.gitattributes
+.github/
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+# The wrapper is unused here: the builder stage runs Maven from its base image.
+.mvn/
+mvnw
+mvnw.cmd
+
+HELP.md
+README.md
+Dockerfile
+.dockerignore
