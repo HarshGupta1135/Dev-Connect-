@@ -89,6 +89,27 @@ Once the application is running locally, you can view the fully interactive API 
 
 ---
 
+## 🖥️ Frontend
+
+The React client lives in [`devconnect-frontend/`](devconnect-frontend) (Vite + React 19).
+Run it in a second terminal, with the backend already up on 8080:
+
+```bash
+cd devconnect-frontend
+npm install
+npm run dev          # http://localhost:3000
+```
+
+The Vite dev server proxies `/api`, `/admin` and `/health` to `http://localhost:8080`,
+so the browser only ever talks to one origin and the backend needs no CORS configuration
+during development. For a deployed build, set `VITE_API_BASE_URL` to the backend origin
+instead — see `devconnect-frontend/.env.example` — at which point the backend does have
+to allow that origin.
+
+On Windows use `mvnw.cmd` in place of `./mvnw` throughout.
+
+---
+
 ## 🧪 Testing Verification
 
 The test suite validates the caching performance and automatic scheduling. A sample execution yields the following logs:
