@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.DevConnect.dto.response.ApplicantSummary;
 import com.example.DevConnect.dto.response.ApplicationResponse;
 import java.util.ArrayList;
 import java.util.Date;
@@ -121,6 +122,11 @@ public class ApplicationService {
                 .build();
     }
 
+    /**
+     * Runs in a transaction because the applicant summary walks into the developer's
+     * lazily loaded skill set, which would otherwise fail once the session is closed.
+     */
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getAllApplicantsById(String email, Long jobId) {
 
         User user = userRepository.findByEmail(email)
@@ -141,9 +147,45 @@ public class ApplicationService {
 
         List<ApplicationResponse> list = new ArrayList<>();
         for(Application application : byJob){
-            list.add(mapToResponse(application));
+            list.add(mapToRecruiterResponse(application));
         }
         return list;
+    }
+
+    /**
+     * Same shape as the developer's own view, plus the candidate behind the
+     * application — the recruiter has to be able to judge experience and skills
+     * without leaving the applicants page.
+     */
+    private ApplicationResponse mapToRecruiterResponse(Application application) {
+
+        ApplicationResponse response = mapToResponse(application);
+
+        DeveloperProfile developer = application.getDeveloper();
+        if (developer == null) {
+            return response;
+        }
+
+        User developerUser = developer.getUser();
+
+        List<String> skillNames = developer.getSkills() != null
+                ? developer.getSkills().stream().map(Skill::getName).sorted().toList()
+                : List.of();
+
+        response.setApplicant(ApplicantSummary.builder()
+                .developerId(developer.getId())
+                .fullName(developer.getFullName())
+                .userName(developerUser != null ? developerUser.getUserName() : null)
+                .email(developerUser != null ? developerUser.getEmail() : null)
+                .bio(developer.getBio())
+                .location(developer.getLocation())
+                .yearsExp(developer.getYearsExp())
+                .resumeUrl(developer.getResumeUrl())
+                .linkedinUrl(developer.getLinkedinUrl())
+                .skills(skillNames)
+                .build());
+
+        return response;
     }
 
     @Transactional

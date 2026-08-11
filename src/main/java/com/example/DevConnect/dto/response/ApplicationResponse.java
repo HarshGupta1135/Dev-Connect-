@@ -19,4 +19,7 @@ public class ApplicationResponse {
     private String coverNote;
     private Date appliedAt;
     private Date updatedAt;
+
+    /** Set on the recruiter's applicants view only; null when a developer lists their own. */
+    private ApplicantSummary applicant;
 }
