@@ -85,7 +85,9 @@ public class ApplicationService {
         String jobTitle = jobPosting.getTitle();
         String companyName = jobPosting.getRecruiter().getCompanyName();
 
-        emailService.sendApplicationConfirmationEmail(email, developerName, jobTitle, companyName);
+        // Not the address they signed in with: the one they chose to be notified on.
+        emailService.sendApplicationConfirmationEmail(
+                user.resolveNotificationEmail(), developerName, jobTitle, companyName);
     }
 
     public List<ApplicationResponse> getJobApplications(String email) {
@@ -225,7 +227,8 @@ public class ApplicationService {
         }
         String jobTitle = application.getJob().getTitle();
 
-        // Send status email asynchronously
-        emailService.sendStatusUpdateEmail(applicantUser.getEmail(), developerName, jobTitle, applicationStatus.name());
+        // Send status email asynchronously, to the applicant's chosen address
+        emailService.sendStatusUpdateEmail(
+                applicantUser.resolveNotificationEmail(), developerName, jobTitle, applicationStatus.name());
     }
 }

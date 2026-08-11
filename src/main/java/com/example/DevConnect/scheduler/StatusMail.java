@@ -27,7 +27,7 @@ public class StatusMail {
         for (Application app : rejectedApplications) {
             // Get candidate user details
             User user = app.getDeveloper().getUser();
-            String toEmail = user.getEmail();
+            String toEmail = user.resolveNotificationEmail();
             
             // Get job role
             String role = app.getJob().getTitle();
@@ -56,7 +56,7 @@ public class StatusMail {
         for (Application app : shortlistedApplications) {
             // Get candidate user details
             User user = app.getDeveloper().getUser();
-            String toEmail = user.getEmail();
+            String toEmail = user.resolveNotificationEmail();
             
             // Get job role
             String role = app.getJob().getTitle();

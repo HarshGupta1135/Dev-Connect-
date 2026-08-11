@@ -1,5 +1,7 @@
 package com.example.DevConnect.dto.request;
 
+import com.example.DevConnect.enums.EmailPreference;
+
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
@@ -27,4 +29,18 @@ public class AccountUpdateRequest {
             message = "Invalid email format"
     )
     private String email;
+
+    /**
+     * Optional. Blank or null clears it — and clears a SECONDARY preference with it,
+     * since there would be nowhere to deliver to. Any provider is accepted: unlike the
+     * primary address this is only a delivery target, never a sign-in identity.
+     */
+    @Pattern(
+            regexp = "^$|^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$",
+            message = "Invalid secondary email format"
+    )
+    private String secondaryEmail;
+
+    /** Null leaves the current choice untouched. */
+    private EmailPreference emailPreference;
 }

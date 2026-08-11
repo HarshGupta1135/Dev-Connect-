@@ -39,13 +39,18 @@ public class AuthService {
 
     public String register(RegisterRequest request) {
 
-        if (userRepository.findByUserName(request.getUsername()) != null) {
+        // Trimmed before the uniqueness check, not after: the collation treats trailing
+        // spaces as significant, so "harsh " would otherwise slip past as a new name.
+        String username = request.getUsername() != null ? request.getUsername().trim() : null;
+        String email = request.getEmail() != null ? request.getEmail().trim() : null;
+
+        if (userRepository.findByUserName(username) != null) {
             throw new RuntimeException("Username already exists");
         }
 
         User user = new User();
-        user.setUserName(request.getUsername());
-        user.setEmail(request.getEmail());
+        user.setUserName(username);
+        user.setEmail(email);
         user.setPassword(request.getPassword());
 
         if (userRepository.findByEmail(user.getEmail()).isPresent()) {
@@ -62,7 +67,7 @@ public class AuthService {
         user.setRole(List.of(chosenRole.toUpperCase()));
         
         userRepository.save(user);
-        emailService.sendWelcomeEmail(user.getEmail(), user.getUserName());
+        emailService.sendWelcomeEmail(user.resolveNotificationEmail(), user.getUserName());
 
         return "User registered successfully as " + user.getRole().get(0) + "! Please log in.";
     }
