@@ -130,6 +130,50 @@ names Upstash. The throwaway MySQL and Redis get their own passwords, defaulted 
 compose file so the stack never borrows the host database's password or the Upstash
 token; set `LOCAL_DB_PASSWORD` / `LOCAL_REDIS_PASSWORD` to change them.
 
+### Recommended day-to-day setup
+
+Run the databases in Docker and the application however suits the task. Both reach the
+same data, so nothing has to be migrated when you switch:
+
+```bash
+docker compose up -d mysql redis     # leave running; the data lives in a volume
+./mvnw spring-boot:run               # development: ~8s start, devtools reload, debugger
+docker compose up -d app             # before deploying: exercises the real image
+```
+
+Only one of the last two at a time — both want port 8080. `.env` needs no editing
+between them, because `docker-compose.yml` overrides the addresses for the container.
+
+Two consequences worth being deliberate about:
+
+* A MySQL installed on the host is now a *second, divergent* copy of the data. Stop its
+  service so nothing reaches it by accident.
+* `docker compose down -v` deletes the volume, and there is no folder left behind to
+  recover from. Dump before anything schema-related:
+
+  ```bash
+  docker exec devconnect-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --hex-blob --databases devconnect' > backups/devconnect-$(date +%F).sql
+  ```
+
+### Schema migrations
+
+Flyway owns the schema; `ddl-auto` is `validate`, so Hibernate checks the mapping and
+changes nothing. Migrations are plain SQL in `src/main/resources/db/migration`, applied
+in version order at startup and recorded in `flyway_schema_history`.
+
+To change the schema, add a file — never edit one that has already run, since Flyway
+checksums them and will refuse to start on a mismatch:
+
+```
+V2__add_something.sql
+```
+
+`baseline-on-migrate` is on, so a database that already has the V1 tables is recorded as
+being at V1 and the script is skipped; an empty one gets the script instead. This is
+what `ddl-auto: update` could not do: it silently declined to add the unique constraints
+on `users.user_name` and `users.email` to a table that already existed, so they had to be
+applied by hand and existed in no file.
+
 ### Seeding the compose database from your local one
 
 The stack keeps its data in a Docker volume, entirely separate from a MySQL installed

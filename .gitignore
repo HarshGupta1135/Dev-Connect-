@@ -38,3 +38,6 @@ build/
 .env
 .env.local
 !.env.example
+
+### Database dumps (contain real user rows) ###
+backups/
