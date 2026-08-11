@@ -18,7 +18,11 @@
 
 services:
   mysql:
-    image: mysql:8
+    # Pinned to match the MySQL on the host (8.0.44). The floating `mysql:8` tag now
+    # resolves to 8.4, and a data directory initialised by 8.4 cannot be opened by
+    # 8.0 — so drifting between them silently breaks the volume, and dumps taken from
+    # the host restore into a server a major version ahead of where they came from.
+    image: mysql:8.0
     container_name: devconnect-mysql
     restart: unless-stopped
     environment:

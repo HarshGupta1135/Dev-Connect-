@@ -110,6 +110,54 @@ On Windows use `mvnw.cmd` in place of `./mvnw` throughout.
 
 ---
 
+## 🐳 Running with Docker
+
+```bash
+docker compose up --build      # backend + its own MySQL + its own Redis
+docker compose down            # stop, keeping the data
+docker compose down -v         # stop and delete the databases
+```
+
+The backend is published on 8080 as usual. MySQL and Redis are published on **3307**
+and **6380** rather than their defaults, so the stack does not collide with a MySQL or
+Redis already running on the host; the app itself reaches them over the compose
+network by service name, not through those mappings.
+
+`.env` still supplies the real secrets — mail, Cloudinary, `JWT_SECRET`. What
+`docker-compose.yml` overrides is anything describing *where* a service lives, since
+`DB_URL` names `localhost` (which inside a container is the container) and `REDIS_HOST`
+names Upstash. The throwaway MySQL and Redis get their own passwords, defaulted in the
+compose file so the stack never borrows the host database's password or the Upstash
+token; set `LOCAL_DB_PASSWORD` / `LOCAL_REDIS_PASSWORD` to change them.
+
+### Seeding the compose database from your local one
+
+The stack keeps its data in a Docker volume, entirely separate from a MySQL installed
+on the host — so it starts empty, with only the admin user `DataInitializer` creates.
+To copy an existing local database across:
+
+```bash
+# 1. dump the host database (--hex-blob matters: users.role is a serialised blob)
+mysqldump -uroot -p --single-transaction --hex-blob --databases devconnect > devconnect-host.sql
+
+# 2. start MySQL alone and let it become healthy, before the app can create a schema
+docker compose up -d mysql
+
+# 3. load the dump
+docker exec -i devconnect-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < devconnect-host.sql
+
+# 4. now start the rest
+docker compose up -d
+```
+
+Keep the dump out of version control — it contains real user rows.
+
+The MySQL image is pinned to `8.0` to match a typical local install. This matters in
+both directions: a data directory initialised by 8.4 cannot be opened by 8.0, and a
+dump taken from 8.0 should not be restored into a server a major version ahead of it.
+
+---
+
 ## 🧪 Testing Verification
 
 The test suite validates the caching performance and automatic scheduling. A sample execution yields the following logs:
