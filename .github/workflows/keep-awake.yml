@@ -1,0 +1,54 @@
+# Keeps the deployed backend from going to sleep.
+#
+# Render spins a free web service down after 15 minutes without traffic, and
+# waking it means starting a JVM on half a CPU — the first visitor after a quiet
+# spell waits one to two minutes and reasonably concludes the site is broken.
+#
+# Render allows 750 instance-hours a month against a ~730-hour month, so keeping a
+# single service running continuously fits inside the free allowance. Adding a
+# second free service would not.
+#
+# Public repository, so these runs cost nothing.
+
+name: Keep backend awake
+
+on:
+  schedule:
+    # Every 10 minutes. GitHub does not promise punctuality — a scheduled run can
+    # be minutes late under load — so this is deliberately tighter than the
+    # 15-minute idle timeout it is defending against.
+    - cron: '*/10 * * * *'
+  # So it can be triggered by hand from the Actions tab, which is also the way to
+  # confirm it works without waiting for a slot.
+  workflow_dispatch:
+
+concurrency:
+  # A late run must never queue up behind an earlier one.
+  group: keep-awake
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Wake the API
+        run: |
+          BASE="https://devconnect-backend-u07y.onrender.com"
+
+          # A cold start can take well over a minute, so this has to be patient
+          # rather than fail and leave the service asleep.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 240 "$BASE/health" || echo "000")
+          echo "health: $code"
+
+          # Hits the database too. /health touches nothing, so pinging only that
+          # would keep Render awake while letting Aiven idle down separately.
+          jobs_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 "$BASE/api/jobs?page=0&size=1" || echo "000")
+          echo "jobs: $jobs_code"
+
+          # Fails the run only if the service is genuinely unreachable, so a red
+          # cross in the Actions tab means something worth looking at.
+          if [ "$code" != "200" ]; then
+            echo "::error::Backend did not return 200 from /health (got $code)"
+            exit 1
+          fi
