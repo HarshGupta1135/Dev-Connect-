@@ -1,320 +1,342 @@
-# DevConnect - High-Performance Developer Job Board & Matching Platform
+# DevConnect
 
-DevConnect is a modern, high-performance job board designed to match developers with suitable job postings using skill proximity scoring. It is built on a scalable Java Spring Boot backend featuring an optimized Redis caching layer, eager object fetching, automatic cron scheduling, and document storage.
+A job board that ranks roles by how closely they match a developer's actual skill set, rather than by keyword — built on Spring Boot 4 and Java 25, with a React client, Redis-cached search, and a schema that migrates itself.
 
----
+| | |
+| --- | --- |
+| 🌐 **Live app** | **https://dev-connect-delta-pied.vercel.app** |
+| ⚙️ **API** | https://devconnect-backend-u07y.onrender.com |
+| 📖 **API docs (Swagger UI)** | https://devconnect-backend-u07y.onrender.com/swagger-ui/index.html |
 
-## 🚀 Key Features
+> **The API sleeps when idle.** Render's free tier spins the service down after 15 minutes,
+> and a JVM cold-starting on half a CPU takes 1–2 minutes. Open
+> [`/health`](https://devconnect-backend-u07y.onrender.com/health) first and wait for
+> `{"success":true}` — then the app is instant.
 
-* **Intelligent Skill-based Matching**: Features a Jaccard-similarity proximity search that ranks jobs based on matched skills rather than simple text lookups.
-* **Optimized Redis Caching**: Implements a high-efficiency caching strategy via Jackson JSON serialization, resolving standard Spring Page serialization limitations and achieving a **14.54x speedup** on repeated searches.
-* **Automatic Expiration Scheduler**: Executes a daily midnight cron job to close expired listings and automatically evict cached indices to prevent stale results.
-* **Secure Document Uploads**: Integrates with Cloudinary to handle multipart developer resume uploads safely.
-* **Swagger/OpenAPI Documentation**: Automatically generated interactive UI displaying and documenting all endpoints.
+<!--
+  DEMO RECORDING — add one and uncomment the line below.
+  Record 20–30 seconds: search a role, view the match ring, apply, then shortlist as a
+  recruiter. Convert with Gifski (mac) or ScreenToGif (Windows), keep it under ~8 MB, and
+  commit it as docs/demo.gif.
 
----
-
-## 🛠️ Technology Stack
-
-* **Core Framework**: Java 25 & Spring Boot 4
-* **Database**: MySQL (Primary Database)
-* **Caching**: Redis (Upstash)
-* **Security**: JSON Web Token (JWT) & Spring Security
-* **Storage Service**: Cloudinary
-* **Documentation**: Springdoc OpenAPI v3
-
----
-
-## 📖 API Documentation & Swagger UI
-
-Once the application is running locally, you can view the fully interactive API documentation, test endpoints, and inspect payloads via the **Swagger UI**:
-
-👉 **Swagger URL**: [http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
+  ![DevConnect demo](docs/demo.gif)
+-->
 
 ---
 
-## ⚙️ Getting Started
+## Features
 
-### 📋 Prerequisites
-* JDK 25 or higher
-* Maven 3.9+
-* Running MySQL instance
-* Running Redis server / Upstash connection details
+**Core**
 
-### 📦 Setup Instructions
+- ✅ JWT authentication with role-based access — developer, recruiter, admin
+- ✅ Developer profiles: bio, location, years of experience, skills, LinkedIn, resume
+- ✅ Recruiter company profiles and job posting with required skills and expiry
+- ✅ Public, paginated, filterable job search — by skill, location and work style
+- ✅ One-click applications with an optional cover note
+- ✅ Recruiter applicant review — full candidate profile, shortlist or pass
+- ✅ Email on registration, on application, and on every decision
+- ✅ Resume upload to Cloudinary (raw storage, so the file keeps its format)
 
-1. **Clone the repository**:
-   ```bash
-   git clone https://github.com/your-username/DevConnect.git
-   cd DevConnect
-   ```
+**Beyond the basics**
 
-2. **Configure credentials**:
-   `application.yaml` holds no secrets. Every credential is read from a `.env` file in the
-   project root, which is git-ignored. Copy the template and fill it in:
-   ```bash
-   cp .env.example .env
-   ```
-   ```properties
-   DB_PASSWORD=your-mysql-password
-   MAIL_USERNAME=your.address@gmail.com
-   MAIL_PASSWORD=your-gmail-app-password
-   REDIS_HOST=your-redis-host
-   REDIS_PASSWORD=your-redis-password
-   CLOUDINARY_CLOUD_NAME=your-cloud-name
-   CLOUDINARY_API_KEY=your-api-key
-   CLOUDINARY_API_SECRET=your-api-secret
-   JWT_SECRET=a-random-string-of-at-least-32-characters
-   ```
-   In a deployed environment, set these as real environment variables instead — they take
-   precedence over the file, and no `.env` is needed.
-
-   If a value is missing from both, the app refuses to start rather than falling back to a
-   default. Note that the error may be a downstream one: a missing `DB_PASSWORD` surfaces as
-   `Access denied for user 'root'`, because Spring leaves an unresolved placeholder as literal
-   text when binding configuration properties. A missing `JWT_SECRET` reports itself directly
-   as `Could not resolve placeholder 'jwt.secret'`. If startup fails on credentials, check
-   `.env` against `.env.example` first.
-
-3. **Run Maven tests**:
-   Ensure all tests compile and pass successfully:
-   ```bash
-   ./mvnw clean test
-   ```
-
-4. **Start the application**:
-   ```bash
-   ./mvnw spring-boot:run
-   ```
+- ✅ **Skill-proximity ranking** — Jaccard similarity, not text search (see below)
+- ✅ **Redis-cached search** with a Jackson serializer that works around Spring's inability to serialise a `Page`
+- ✅ **Self-migrating schema** — Flyway builds a brand-new database from scratch on first boot
+- ✅ **Scheduled expiry sweep** — closes lapsed listings and evicts stale cache entries
+- ✅ **Notification address of your choice** — route mail to a secondary email
+- ✅ **Multi-stage Docker build** — 84 MB app jar in a 463 MB image, no Maven or JDK shipped
+- ✅ **One-command local stack** — `docker compose up` for API, MySQL and Redis
+- ✅ Interactive OpenAPI documentation
 
 ---
 
-## 🖥️ Frontend
+## Tech stack
 
-The React client lives in [`devconnect-frontend/`](devconnect-frontend) (Vite + React 19).
-Run it in a second terminal, with the backend already up on 8080:
+| Layer | Technology | Why it's there |
+| --- | --- | --- |
+| Language | **Java 25** (LTS) | Records, pattern matching, virtual-thread-ready runtime |
+| Framework | **Spring Boot 4.0.6** / Spring Framework 7 | REST API, DI, configuration binding |
+| Security | **Spring Security 6** + **JJWT** | Stateless JWT auth, method-level role checks |
+| Persistence | **Spring Data JPA** / **Hibernate 7.2** | Entity mapping and repositories |
+| Database | **MySQL 8** | Relational data — users, jobs, applications, skills |
+| Migrations | **Flyway 11** | Schema lives in version control, not in a database |
+| Cache | **Redis** (Upstash) | Caches job-listing pages; invalidated by the expiry sweep |
+| Mail | **Spring Mail** + Gmail SMTP | Async notifications on application and decision |
+| File storage | **Cloudinary** | Resume uploads, kept out of the app's ephemeral filesystem |
+| Docs | **Springdoc OpenAPI 3** | Generated, browsable API reference |
+| Frontend | **React 19** + **Vite 6** | SPA client |
+| Routing / forms | **React Router 7**, **React Hook Form** | 11 client routes, validated forms |
+| HTTP | **Axios** | Interceptors attach the JWT and normalise errors |
+| Build | **Maven**, **Docker** (multi-stage) | Reproducible builds, identical image everywhere |
+| Hosting | **Vercel**, **Render**, **Aiven**, **Upstash** | Entirely free tiers |
 
-```bash
-cd devconnect-frontend
-npm install
-npm run dev          # http://localhost:3000
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+    U([Browser])
+
+    subgraph V["Vercel"]
+        FE["React + Vite SPA<br/>static, CDN-served"]
+    end
+
+    subgraph R["Render"]
+        BE["Spring Boot API<br/>Docker · Java 25"]
+    end
+
+    subgraph A["Aiven"]
+        DB[("MySQL 8.4<br/>TLS required")]
+    end
+
+    subgraph UP["Upstash"]
+        RD[("Redis<br/>TLS required")]
+    end
+
+    CL["Cloudinary<br/>resume files"]
+    SM["Gmail SMTP<br/>notifications"]
+
+    U -->|HTTPS| FE
+    FE -->|"JSON + Bearer JWT<br/>origin allowlisted"| BE
+    BE -->|JDBC| DB
+    BE -->|"cache job pages"| RD
+    BE -->|"multipart upload"| CL
+    BE -->|"async mail"| SM
 ```
 
-The Vite dev server proxies `/api`, `/admin` and `/health` to `http://localhost:8080`,
-so the browser only ever talks to one origin and the backend needs no CORS configuration
-during development. For a deployed build, set `VITE_API_BASE_URL` to the backend origin
-instead — see `devconnect-frontend/.env.example` — at which point the backend does have
-to allow that origin.
-
-On Windows use `mvnw.cmd` in place of `./mvnw` throughout.
+Four providers, one image. The same Dockerfile builds what runs locally and what runs on
+Render, so every address and credential arrives as an environment variable and nothing
+about the deployment is compiled in.
 
 ---
 
-## 🐳 Running with Docker
+## How the interesting parts work
 
-```bash
-docker compose up --build      # backend + its own MySQL + its own Redis
-docker compose down            # stop, keeping the data
-docker compose down -v         # stop and delete the databases
+### Skill-proximity ranking
+
+A developer searching jobs gets a match percentage per listing, computed as **Jaccard
+similarity** over skill-id sets:
+
+```
+score = |developer skills ∩ job skills| / |developer skills ∪ job skills| × 100
 ```
 
-The backend is published on 8080 as usual. MySQL and Redis are published on **3307**
-and **6380** rather than their defaults, so the stack does not collide with a MySQL or
-Redis already running on the host; the app itself reaches them over the compose
-network by service name, not through those mappings.
+The union in the denominator is what makes it useful: a job wanting one skill you have
+does not outrank a job wanting five of your six. Keyword search cannot express that.
 
-`.env` still supplies the real secrets — mail, Cloudinary, `JWT_SECRET`. What
-`docker-compose.yml` overrides is anything describing *where* a service lives, since
-`DB_URL` names `localhost` (which inside a container is the container) and `REDIS_HOST`
-names Upstash. The throwaway MySQL and Redis get their own passwords, defaulted in the
-compose file so the stack never borrows the host database's password or the Upstash
-token; set `LOCAL_DB_PASSWORD` / `LOCAL_REDIS_PASSWORD` to change them.
+### Caching a Spring `Page`
 
-### Recommended day-to-day setup
+Spring's `PageImpl` has no default constructor, so Jackson cannot deserialise it out of
+Redis. Rather than caching entities and re-paginating, results are mapped to a
+`CustomPageResponse` DTO that serialises cleanly. A sample test run:
 
-Run the databases in Docker and the application however suits the task. Both reach the
-same data, so nothing has to be migrated when you switch:
-
-```bash
-docker compose up -d mysql redis     # leave running; the data lives in a volume
-./mvnw spring-boot:run               # development: ~8s start, devtools reload, debugger
-docker compose up -d app             # before deploying: exercises the real image
+```text
+First call  (cache miss → MySQL): 407 ms
+Second call (cache hit  → Redis):  28 ms
+→ 14.54× faster
 ```
 
-Only one of the last two at a time — both want port 8080. `.env` needs no editing
-between them, because `docker-compose.yml` overrides the addresses for the container.
+### A schema that builds itself
 
-Two consequences worth being deliberate about:
+Flyway owns the schema and `ddl-auto` is `validate`, so Hibernate verifies the mapping and
+changes nothing. Point the app at an empty database and it creates all eight tables,
+constraints included, then records what it ran in `flyway_schema_history`.
 
-* A MySQL installed on the host is now a *second, divergent* copy of the data. Stop its
-  service so nothing reaches it by accident.
-* `docker compose down -v` deletes the volume, and there is no folder left behind to
-  recover from. Dump before anything schema-related:
+This replaced `ddl-auto: update`, which had silently declined to add unique constraints to
+tables that already existed — so `users.user_name` and `users.email` had been unique on
+some databases and not others, with the fix existing in no file.
 
-  ```bash
-  docker exec devconnect-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --hex-blob --databases devconnect' > backups/devconnect-$(date +%F).sql
-  ```
+---
 
-### Schema migrations
+## Running it locally
 
-Flyway owns the schema; `ddl-auto` is `validate`, so Hibernate checks the mapping and
-changes nothing. Migrations are plain SQL in `src/main/resources/db/migration`, applied
-in version order at startup and recorded in `flyway_schema_history`.
+**Prerequisites:** JDK 25, Docker Desktop, Node 20+.
 
-To change the schema, add a file — never edit one that has already run, since Flyway
-checksums them and will refuse to start on a mismatch:
+```bash
+git clone https://github.com/HarshGupta1135/Dev-Connect-.git
+cd Dev-Connect-
+cp .env.example .env          # then fill in mail, Cloudinary and JWT values
+```
+
+```bash
+# 1. databases (leave running — data persists in a Docker volume)
+docker compose up -d mysql redis
+
+# 2. API on :8080 — Flyway creates the schema on first start
+./mvnw spring-boot:run
+
+# 3. client on :3000, in a second terminal
+cd devconnect-frontend && npm install && npm run dev
+```
+
+Open **http://localhost:3000**. On Windows use `mvnw.cmd` in place of `./mvnw`.
+
+The Vite dev server proxies `/api`, `/admin` and `/health` to port 8080, so the browser
+only ever sees one origin and no CORS configuration is needed for development.
+
+### Configuration
+
+`application.yaml` contains no secrets; every credential is read from the git-ignored
+`.env`, and real environment variables take precedence, so deployments need no file.
+
+Anything missing fails startup rather than falling back to a default — deliberately, but
+the error can be indirect: a missing `DB_PASSWORD` surfaces as `Access denied for user`,
+because Spring leaves an unresolved placeholder as literal text. Check `.env` against
+`.env.example` first.
+
+### Everything in containers
+
+```bash
+docker compose up --build     # API + MySQL + Redis
+docker compose down           # stop, keep the data
+docker compose down -v        # stop and delete the databases
+```
+
+MySQL and Redis publish on **3307** and **6380** so they never collide with instances
+already installed on the host; the API reaches them by service name over the compose
+network. Point a client (MySQL Workbench) at `localhost:3307`.
+
+Use this before deploying, to exercise the real image. For day-to-day work prefer
+`./mvnw spring-boot:run` — it starts in ~8 seconds with devtools reload and a debugger,
+against the same containerised database, so nothing needs migrating between the two.
+
+`docker compose down -v` deletes the volume with nothing left to recover from. Dump first:
+
+```bash
+docker exec devconnect-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --databases devconnect' > backups/devconnect-$(date +%F).sql
+```
+
+### Changing the schema
+
+Add a file to `src/main/resources/db/migration` — never edit one that has already run,
+since Flyway checksums them and refuses to start on a mismatch:
 
 ```
 V2__add_something.sql
 ```
 
-`baseline-on-migrate` is on, so a database that already has the V1 tables is recorded as
-being at V1 and the script is skipped; an empty one gets the script instead. This is
-what `ddl-auto: update` could not do: it silently declined to add the unique constraints
-on `users.user_name` and `users.email` to a table that already existed, so they had to be
-applied by hand and existed in no file.
-
-### Seeding the compose database from your local one
-
-The stack keeps its data in a Docker volume, entirely separate from a MySQL installed
-on the host — so it starts empty, with only the admin user `DataInitializer` creates.
-To copy an existing local database across:
-
-```bash
-# 1. dump the host database
-mysqldump -uroot -p --single-transaction --hex-blob --databases devconnect > devconnect-host.sql
-
-# 2. start MySQL alone and let it become healthy, before the app can create a schema
-docker compose up -d mysql
-
-# 3. load the dump
-docker exec -i devconnect-mysql sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < devconnect-host.sql
-
-# 4. now start the rest
-docker compose up -d
-```
-
-Keep the dump out of version control — it contains real user rows.
-
-The MySQL image is pinned to `8.0` to match a typical local install. This matters in
-both directions: a data directory initialised by 8.4 cannot be opened by 8.0, and a
-dump taken from 8.0 should not be restored into a server a major version ahead of it.
+Aiven enforces `sql_require_primary_key`, so every table must declare a primary key.
 
 ---
 
-## ☁️ Deploying free: Render + Aiven + Upstash
+## API documentation
 
-Nothing in the code changes for this — Aiven is real MySQL, so the driver, dialect and
-migrations are the same ones used locally.
+Interactive Swagger UI, generated from the controllers:
 
-| Piece | Where | Free plan reality |
+- **Live:** https://devconnect-backend-u07y.onrender.com/swagger-ui/index.html
+- **Local:** http://localhost:8080/swagger-ui/index.html
+- **OpenAPI JSON:** `/v3/api-docs`
+
+Authenticate with `POST /api/auth/login`, then send `Authorization: Bearer <token>`.
+
+| Area | Endpoints |
+| --- | --- |
+| Auth | `POST /api/auth/register`, `POST /api/auth/login` |
+| Jobs (public) | `GET /api/jobs`, `GET /api/jobs/{id}` |
+| Account | `GET /api/account/me`, `PUT /api/account` |
+| Developer | `GET·POST·PUT /api/developer/profile`, `POST /api/developer/profile/resume`, `POST /api/developer/apply`, `GET /api/developer/applications` |
+| Recruiter | `GET·POST·PUT /api/recruiter/profile`, `GET·POST·PUT /api/recruiter/jobs`, `PATCH /api/recruiter/jobs/{id}/close`, `GET /api/recruiter/jobs/{jobId}/applications`, `PATCH /api/recruiter/applications/{id}/status` |
+| Skills | `GET /api/get/all/skills`, `POST /api/add/skills` *(admin)* |
+| Admin | `GET /admin/get-all-users`, `POST /admin/add-admin` |
+
+---
+
+## Deployment
+
+Four free tiers, no code changes between local and production:
+
+| Component | Provider | Notes |
 | --- | --- | --- |
-| Spring Boot app | Render web service | 750 instance-hours/month; spins down after 15 min idle, ~1 min to wake |
-| MySQL | Aiven | 1 GB RAM, 1 GB storage, no expiry; powers off after prolonged inactivity |
-| Redis | Upstash | already provisioned |
+| Client | **Vercel** | Root directory `devconnect-frontend`; `VITE_API_BASE_URL` points at the API |
+| API | **Render** | Blueprint from `render.yaml`, Dockerfile builder, health check on `/health` |
+| MySQL | **Aiven** | Free plan has no expiry; database is `defaultdb`, user `avnadmin`, TLS required |
+| Redis | **Upstash** | TLS required — `REDIS_SSL=true` |
 
-Render has **no managed MySQL**, and its free PostgreSQL is **deleted 30 days after
-creation** — which is why the database is Aiven's rather than Render's own.
+### API on Render
 
-### 1. Aiven MySQL
+New → **Blueprint** → this repo. `render.yaml` pins the Dockerfile builder and health-checks
+`/health`, so a failed migration fails the deploy instead of going live broken. Supply the
+variables it prompts for. Do not set `PORT`: Render assigns it and `server.port` follows.
 
-Create a free MySQL service, then take its host, port, user and password from the
-service overview. The port is not 3306, the user is `avnadmin`, and the database is
-`defaultdb` — a free plan cannot add others.
-
-Aiven requires TLS, so the URL needs `sslMode=REQUIRED`; without it the connection is
-refused rather than downgraded:
+For Aiven, `sslMode=REQUIRED` is not optional — it refuses plaintext connections, and its
+own connection URI spells the parameter `ssl-mode`, which the JDBC driver ignores:
 
 ```
 DB_URL=jdbc:mysql://<host>:<port>/defaultdb?sslMode=REQUIRED
 DB_USERNAME=avnadmin
-DB_PASSWORD=<from the Aiven console>
 ```
 
-### 2. Render
+### Client on Vercel
 
-New → **Blueprint** → this repo. `render.yaml` declares the service, pins the Dockerfile
-builder, and health-checks `/health`, so a failed migration fails the deploy instead of
-going live broken. Then set the environment variables it asks for — mail, Cloudinary,
-`JWT_SECRET` and the three `DB_` values above.
+Set **Root Directory** to `devconnect-frontend` — this is not a standalone repository. One
+variable:
 
-Leave `PORT` alone: Render assigns it and `server.port` follows it.
+```
+VITE_API_BASE_URL=https://devconnect-backend-u07y.onrender.com
+```
 
-On first boot Flyway finds an empty database and applies `V1`, so the schema builds
-itself. Watch for `Migrating schema "defaultdb" to version "1"` in the logs.
+Vite only exposes `VITE_`-prefixed names to client code, and inlines them at **build** time,
+so changing it needs a redeploy. A `REACT_APP_` name is Create React App's convention and
+is silently ignored here.
 
-### What the free tier costs you in practice
+`vercel.json` rewrites every path to `index.html`; without it only `/` works, because Vercel
+looks for a file at `/jobs` and finds none.
 
-The app sleeps after 15 minutes, so the first visitor after a quiet spell waits about a
-minute for the JVM to start. Aiven also powers off an idle database, which has to be
-resumed from its console. Neither loses data — both are slow to wake, which is the
-trade for paying nothing.
+### Then point them at each other
+
+```
+CORS_ALLOWED_ORIGINS=https://your-app.vercel.app     # on Render
+```
+
+Exact match, no trailing slash. The backend sends no CORS headers while this is empty,
+which is why local development needs none.
+
+<details>
+<summary>Railway, if you would rather pay for no cold starts (~$10/month)</summary>
+
+Railway has managed MySQL and Redis in one dashboard, but its free plan carries $1/month of
+credit against roughly $9–10/month of usage for three always-on services. `railway.toml` is
+in the repo. Its `DATABASE_URL` and `REDIS_URL` cannot be used as-is — compose the JDBC URL
+from the individual variables instead:
+
+```
+DB_URL=jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}
+REDIS_SSL=false
+```
+</details>
 
 ---
 
-## ☁️ Deploying to Railway (paid)
-
-Railway has managed MySQL and Redis, which makes it a single-dashboard alternative — but
-not a free one. Its Free plan carries $1/month of usage credit while this stack costs
-roughly $9–10/month to keep running, so expect Hobby ($5/month) plus overage.
-
-Add a **MySQL** service, a **Redis** service and a service pointed at this repo. The
-Dockerfile is detected automatically, and `railway.toml` pins that plus the health check
-at `/health`, so a failed migration fails the deploy instead of going live broken.
-
-### Variables
-
-Railway's own `DATABASE_URL` / `REDIS_URL` **cannot be used directly.** They are
-`mysql://user:pass@host:port/db` and `redis://default:pass@host:port`, while this app
-needs a JDBC URL and Redis split into host, port and password. Reference the individual
-variables instead — the `${{Service.VAR}}` syntax is Railway's, resolved at deploy time:
-
-| Variable | Value |
-| --- | --- |
-| `DB_URL` | `jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}` |
-| `DB_USERNAME` | `${{MySQL.MYSQLUSER}}` |
-| `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
-| `REDIS_HOST` | `${{Redis.REDISHOST}}` |
-| `REDIS_PORT` | `${{Redis.REDISPORT}}` |
-| `REDIS_PASSWORD` | `${{Redis.REDISPASSWORD}}` |
-| `REDIS_SSL` | `false` — TLS is an Upstash requirement, not Railway's internal network |
-| `JWT_SECRET` | a fresh random string, 32+ characters |
-| `MAIL_USERNAME`, `MAIL_PASSWORD` | Gmail address and app password |
-| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from Cloudinary |
-| `CORS_ALLOWED_ORIGINS` | the deployed client's origin, once it exists |
-| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | optional; seeds one admin on first boot |
-
-Do not set `PORT` — Railway assigns it and `server.port` follows it.
-
-`ADMIN_PASSWORD` is what creates the administrator, and nothing is seeded without it.
-Set it to something you generate, log in once, then remove the variable.
-
-### First deploy
-
-Flyway finds an empty database and applies `V1`, so the schema builds itself with no
-manual step. Watch for `Migrating schema "devconnect" to version "1"` in the logs.
-
-To carry local data across, dump it and pipe it into Railway's MySQL over its **public**
-proxy — `MYSQL_PUBLIC_URL`, not the internal host, which is only reachable from inside
-their network:
+## Tests
 
 ```bash
-docker exec devconnect-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --hex-blob devconnect' > dump.sql
-mysql -h <proxy-host> -P <proxy-port> -u root -p railway < dump.sql
+./mvnw test
 ```
 
-Load it *before* the app's first boot, or Flyway will have created the schema and the
-dump's `CREATE TABLE` statements will collide.
+The suite is integration-level `@SpringBootTest`, so it needs MySQL, Redis and mail
+credentials available — start `docker compose up -d mysql redis` first. It covers the
+caching speedup and the scheduled expiry sweep.
 
 ---
 
-## 🧪 Testing Verification
+## Project layout
 
-The test suite validates the caching performance and automatic scheduling. A sample execution yields the following logs:
-```text
-First call (Cache Miss - Database): 407 ms
-ACTUAL KEYS IN REDIS: [job-listings::0-10----]
-Successfully verified key '0-10----' is present in Redis!
-Second call (Cache Hit - Redis): 28 ms
-Caching speedup ratio: 14.54x faster!
+```
+├── src/main/java/com/example/DevConnect/
+│   ├── config/          security, Redis, Cloudinary, admin seeding
+│   ├── controller/      REST endpoints
+│   ├── dto/             request and response shapes
+│   ├── entity/          JPA entities
+│   ├── exception/       typed exceptions + @RestControllerAdvice
+│   ├── filter/          JWT authentication filter
+│   ├── scheduler/       status-mail sweep
+│   ├── service/         business logic
+│   └── util/            JWT helper, Jaccard scoring
+├── src/main/resources/db/migration/    Flyway SQL
+├── devconnect-frontend/                React + Vite client
+├── Dockerfile                          multi-stage build
+├── docker-compose.yml                  API + MySQL + Redis
+├── render.yaml                         Render blueprint
+└── railway.toml                        Railway config
 ```
