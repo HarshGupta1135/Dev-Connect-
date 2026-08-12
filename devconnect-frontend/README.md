@@ -28,15 +28,12 @@ That changes when the frontend is deployed. Set `VITE_API_BASE_URL` to the backe
 origin and the browser starts making genuine cross-origin requests, which the
 backend must then allow:
 
-```java
-// SecurityConfig
-http.cors(cors -> cors.configurationSource(request -> {
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowedOrigins(List.of("https://your-app.vercel.app"));
-    config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
-    config.setAllowedHeaders(List.of("*"));
-    return config;
-}));
+That no longer needs a code change. The backend reads an allowlist from an environment
+variable and emits no CORS headers while it is empty, which is what keeps local
+development unaffected:
+
+```
+CORS_ALLOWED_ORIGINS=https://your-app.vercel.app
 ```
 
 ## Structure
@@ -73,27 +70,45 @@ Things the UI works around rather than pretends about:
 - **The skills catalogue requires authentication.** `GET /api/get/all/skills` is not
   public, so for signed-out visitors the skill filter accepts free text instead of
   offering suggestions.
-- **Applications do not identify the candidate.** `ApplicationResponse` carries the
-  application id, job title, status, cover note and dates — no developer name or id —
-  so the recruiter's applicant list shows an application reference. Adding candidate
-  details to that response is a backend change.
-- **"Already applied" is matched on job title,** because the applications list returns
-  `jobTitle` rather than `jobId`. A duplicate attempt is still refused by the API, and
-  that response is handled.
 - **Sessions expire after 10 hours.** The token's `exp` claim is read client-side and
   the session is cleared exactly when it lapses, instead of firing requests that the
   backend would reject.
-- **Several business errors arrive as HTTP 500** with the real reason in the message,
+- **Some business errors still arrive as HTTP 500** with the real reason in the message,
   prefixed by `An unexpected error occurred:`. `errorMessage()` strips that prefix so
-  users read the actual problem.
+  users read the actual problem. Conflicts and validation failures on the account
+  endpoints answer 409 and 400 properly; the rest still fall to the catch-all.
 
 ## Deploying to Vercel
 
-1. Set `VITE_API_BASE_URL` to the deployed backend origin.
-2. Add that Vercel origin to the backend's CORS configuration.
-3. Build command `npm run build`, output directory `dist`.
-4. Add a rewrite so client-side routes resolve on refresh:
+This directory lives inside the backend repository, so set Vercel's **Root Directory**
+to `devconnect-frontend`. Everything else it detects on its own — Vite framework preset,
+`npm run build`, output in `dist`.
+
+One environment variable:
+
+```
+VITE_API_BASE_URL=https://your-backend.onrender.com
+```
+
+The name matters. Vite only exposes variables prefixed `VITE_` to client code; a
+`REACT_APP_`-prefixed name is Create React App's convention and would be silently
+ignored here, leaving `baseURL` empty and every request pointed at the Vercel domain
+itself.
+
+It is also read at **build** time, not run time — `import.meta.env.VITE_API_BASE_URL` is
+substituted into the bundle by the bundler. Changing it in Vercel therefore requires a
+redeploy; there is no live value to update.
+
+`vercel.json` holds the rewrite that makes client-side routes survive a refresh:
 
 ```json
 { "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }] }
 ```
+
+Without it, only `/` works. Vercel looks for a file at `/jobs` on a direct hit or a
+refresh, finds none, and answers 404 — every route except the root, and only when the
+router is not already loaded, which is why it survives in-app navigation and breaks on
+shared links.
+
+Then set `CORS_ALLOWED_ORIGINS` on the backend to the Vercel origin, and redeploy the
+backend. The two point at each other, so it takes two passes.
