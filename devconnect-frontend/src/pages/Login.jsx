@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import Field from '../components/Field';
+import PasswordInput from '../components/PasswordInput';
 import { useAuth } from '../context/AuthContext';
 
 export default function Login() {
@@ -57,9 +58,8 @@ export default function Login() {
         </Field>
 
         <Field label="Password" htmlFor="password" error={errors.password}>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="current-password"
             aria-invalid={Boolean(errors.password)}
             placeholder="••••••••"

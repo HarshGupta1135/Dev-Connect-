@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import { registerUser } from '../api/endpoints';
 import Field from '../components/Field';
+import PasswordInput from '../components/PasswordInput';
 
 // Mirrored from the backend's own rules so users see the problem before a round trip.
 const PASSWORD_RULE = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
@@ -78,9 +79,8 @@ export default function Register() {
           error={errors.password}
           hint="At least 8 characters, with one capital, one number and one of @$!%*?&"
         >
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             autoComplete="new-password"
             aria-invalid={Boolean(errors.password)}
             placeholder="••••••••"

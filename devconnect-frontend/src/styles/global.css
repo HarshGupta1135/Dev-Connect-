@@ -374,6 +374,26 @@ select {
   background-repeat: no-repeat;
   padding-right: 34px;
 }
+/* password field with its reveal button */
+.pw { position: relative; display: flex; align-items: center; }
+.pw input { padding-right: 44px; }
+.pw__toggle {
+  all: unset;
+  position: absolute;
+  right: 5px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  color: var(--ink-faint);
+  transition: color 0.18s, background 0.18s;
+}
+.pw__toggle:hover { color: var(--ink); background: var(--surface-2); }
+.pw__toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pw__toggle[aria-pressed='true'] { color: var(--accent); }
+
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 620px) { .grid-2 { grid-template-columns: 1fr; } }
 
