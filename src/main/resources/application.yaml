@@ -72,6 +72,15 @@ cloudinary:
 jwt:
   secret: ${JWT_SECRET}
 
+# Transactional mail. With an API key set, mail goes over Brevo's HTTPS API instead
+# of SMTP — Render's free tier blocks outbound ports 25, 465 and 587, so Gmail SMTP
+# times out there and every send fails silently. Blank locally, where SMTP works.
+brevo:
+  api-key: ${BREVO_API_KEY:}
+  sender-name: ${MAIL_FROM_NAME:DevConnect}
+  # Must be an address verified in Brevo, or the API rejects the send with a 400.
+  sender-email: ${MAIL_FROM:${MAIL_USERNAME}}
+
 app:
   cors:
     # Empty in development: the Vite dev server proxies /api, so the browser only ever

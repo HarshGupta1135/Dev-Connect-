@@ -3,11 +3,17 @@ package com.example.DevConnect.service;
 import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+
+import java.util.List;
+import java.util.Map;
 
 @Service
 @Slf4j
@@ -16,9 +22,67 @@ public class EmailService {
     @Autowired
     private JavaMailSender javaMailSender;
 
+    /** Blank locally, set in deployed environments. Which transport runs depends on it. */
+    @Value("${brevo.api-key:}")
+    private String brevoApiKey;
+
+    @Value("${brevo.sender-email:}")
+    private String senderEmail;
+
+    @Value("${brevo.sender-name:DevConnect}")
+    private String senderName;
+
+    private final RestClient http = RestClient.create();
+
+    private boolean useBrevo() {
+        return brevoApiKey != null && !brevoApiKey.isBlank();
+    }
+
+    /**
+     * One place that actually puts an email on the wire.
+     *
+     * Over Brevo's HTTPS API when an API key is configured, because Render's free
+     * tier blocks outbound traffic to SMTP ports 25, 465 and 587 — Gmail SMTP
+     * simply times out there, and since every caller swallows its exception, mail
+     * failed with nothing to show for it.
+     *
+     * Falls back to JavaMailSender when no key is set, so local development keeps
+     * working against Gmail exactly as before with no configuration.
+     */
+    private void deliver(String to, String subject, String html) throws Exception {
+        if (!useBrevo()) {
+            MimeMessage message = javaMailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, "utf-8");
+            helper.setTo(to);
+            helper.setSubject(subject);
+            helper.setText(html, true);
+            javaMailSender.send(message);
+            return;
+        }
+
+        http.post()
+                .uri("https://api.brevo.com/v3/smtp/email")
+                .header("api-key", brevoApiKey)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(Map.of(
+                        "sender", Map.of("name", senderName, "email", senderEmail),
+                        "to", List.of(Map.of("email", to)),
+                        "subject", subject,
+                        "htmlContent", html))
+                .retrieve()
+                .toBodilessEntity();
+
+        log.info("Sent '{}' to {} via Brevo", subject, to);
+    }
+
     @Async
     public void sendEmail(String to, String subject, String body){
         try {
+            if (useBrevo()) {
+                // Brevo takes HTML; a plain body still renders as a paragraph.
+                deliver(to, subject, "<p>" + body + "</p>");
+                return;
+            }
             SimpleMailMessage mail = new SimpleMailMessage();
             mail.setTo(to);
             mail.setSubject(subject);
@@ -32,9 +96,6 @@ public class EmailService {
     @Async
     public void sendStatusUpdateEmail(String toEmail, String developerName, String jobTitle, String newStatus) {
         try {
-            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-
             String subject = "Application Update: " + jobTitle;
             
             String statusClass = newStatus.equalsIgnoreCase("SHORTLISTED") ? "status-shortlisted" : "status-rejected";
@@ -87,11 +148,7 @@ public class EmailService {
                     "</body>\n" +
                     "</html>";
 
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlMsg, true);
-
-            javaMailSender.send(mimeMessage);
+            deliver(toEmail, subject, htmlMsg);
         } catch (Exception e) {
             log.error("Exception while sending HTML mail", e);
         }
@@ -100,9 +157,6 @@ public class EmailService {
     @Async
     public void sendWelcomeEmail(String toEmail, String userName) {
         try {
-            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-
             String subject = "Welcome to DevConnect!";
             
             String htmlMsg = "<!DOCTYPE html>\n" +
@@ -141,11 +195,7 @@ public class EmailService {
                     "</body>\n" +
                     "</html>";
 
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlMsg, true);
-
-            javaMailSender.send(mimeMessage);
+            deliver(toEmail, subject, htmlMsg);
         } catch (Exception e) {
             log.error("Exception while sending welcome email", e);
         }
@@ -154,9 +204,6 @@ public class EmailService {
     @Async
     public void sendApplicationConfirmationEmail(String toEmail, String developerName, String jobTitle, String companyName) {
         try {
-            MimeMessage mimeMessage = javaMailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, "utf-8");
-
             String subject = "Application Received: " + jobTitle;
             
             String htmlMsg = "<!DOCTYPE html>\n" +
@@ -201,11 +248,7 @@ public class EmailService {
                     "</body>\n" +
                     "</html>";
 
-            helper.setTo(toEmail);
-            helper.setSubject(subject);
-            helper.setText(htmlMsg, true);
-
-            javaMailSender.send(mimeMessage);
+            deliver(toEmail, subject, htmlMsg);
         } catch (Exception e) {
             log.error("Exception while sending application confirmation email", e);
         }
