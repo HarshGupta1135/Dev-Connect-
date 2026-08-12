@@ -365,6 +365,48 @@ input:focus, select:focus, textarea:focus {
 }
 input[aria-invalid='true'], textarea[aria-invalid='true'], select[aria-invalid='true'] { border-color: var(--bad); }
 input::placeholder, textarea::placeholder { color: var(--ink-faint); }
+
+/*
+ * Autofilled fields.
+ *
+ * Chrome paints a saved value with its own pale blue and forces dark text on it,
+ * which in dark mode is a white box with text that barely reads. The background
+ * cannot be set directly — the UA style wins — so a solid inset shadow is painted
+ * over it instead, and the text colour is set through -webkit-text-fill-color,
+ * which is the only property that overrides the forced one.
+ *
+ * :autofill is the standard selector, :-webkit-autofill the one that actually
+ * matches in Chrome and Safari today. They are written as separate rules on
+ * purpose: an unrecognised selector invalidates a whole selector list, so
+ * combining them would lose the rule in browsers that support only one.
+ */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--ink);
+  -webkit-box-shadow: 0 0 0 100px var(--surface) inset;
+  box-shadow: 0 0 0 100px var(--surface) inset;
+  caret-color: var(--ink);
+  border-radius: inherit;
+}
+
+input:autofill,
+textarea:autofill,
+select:autofill {
+  -webkit-text-fill-color: var(--ink);
+  box-shadow: 0 0 0 100px var(--surface) inset;
+  caret-color: var(--ink);
+  border-radius: inherit;
+}
+
+/* Focus has to restore its own ring, since the shadow above replaced it. */
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 100px var(--surface) inset, var(--shadow-ring);
+  box-shadow: 0 0 0 100px var(--surface) inset, var(--shadow-ring);
+}
 select {
   appearance: none;
   background-image: linear-gradient(45deg, transparent 49%, var(--ink-muted) 50%),
