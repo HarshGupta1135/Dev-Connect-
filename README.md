@@ -202,7 +202,61 @@ dump taken from 8.0 should not be restored into a server a major version ahead o
 
 ---
 
-## ☁️ Deploying to Railway
+## ☁️ Deploying free: Render + Aiven + Upstash
+
+Nothing in the code changes for this — Aiven is real MySQL, so the driver, dialect and
+migrations are the same ones used locally.
+
+| Piece | Where | Free plan reality |
+| --- | --- | --- |
+| Spring Boot app | Render web service | 750 instance-hours/month; spins down after 15 min idle, ~1 min to wake |
+| MySQL | Aiven | 1 GB RAM, 1 GB storage, no expiry; powers off after prolonged inactivity |
+| Redis | Upstash | already provisioned |
+
+Render has **no managed MySQL**, and its free PostgreSQL is **deleted 30 days after
+creation** — which is why the database is Aiven's rather than Render's own.
+
+### 1. Aiven MySQL
+
+Create a free MySQL service, then take its host, port, user and password from the
+service overview. The port is not 3306, the user is `avnadmin`, and the database is
+`defaultdb` — a free plan cannot add others.
+
+Aiven requires TLS, so the URL needs `sslMode=REQUIRED`; without it the connection is
+refused rather than downgraded:
+
+```
+DB_URL=jdbc:mysql://<host>:<port>/defaultdb?sslMode=REQUIRED
+DB_USERNAME=avnadmin
+DB_PASSWORD=<from the Aiven console>
+```
+
+### 2. Render
+
+New → **Blueprint** → this repo. `render.yaml` declares the service, pins the Dockerfile
+builder, and health-checks `/health`, so a failed migration fails the deploy instead of
+going live broken. Then set the environment variables it asks for — mail, Cloudinary,
+`JWT_SECRET` and the three `DB_` values above.
+
+Leave `PORT` alone: Render assigns it and `server.port` follows it.
+
+On first boot Flyway finds an empty database and applies `V1`, so the schema builds
+itself. Watch for `Migrating schema "defaultdb" to version "1"` in the logs.
+
+### What the free tier costs you in practice
+
+The app sleeps after 15 minutes, so the first visitor after a quiet spell waits about a
+minute for the JVM to start. Aiven also powers off an idle database, which has to be
+resumed from its console. Neither loses data — both are slow to wake, which is the
+trade for paying nothing.
+
+---
+
+## ☁️ Deploying to Railway (paid)
+
+Railway has managed MySQL and Redis, which makes it a single-dashboard alternative — but
+not a free one. Its Free plan carries $1/month of usage credit while this stack costs
+roughly $9–10/month to keep running, so expect Hobby ($5/month) plus overage.
 
 Add a **MySQL** service, a **Redis** service and a service pointed at this repo. The
 Dockerfile is detected automatically, and `railway.toml` pins that plus the health check

@@ -1,0 +1,67 @@
+# Render Blueprint. New → Blueprint, point it at this repo, and Render reads this file.
+#
+# Only the application runs here. Render has no managed MySQL at all, and its free
+# PostgreSQL is deleted 30 days after creation — so the database is Aiven's free MySQL
+# (no expiry) and the cache is Upstash, both reached over the internet with TLS.
+#
+# Free instance caveats worth knowing rather than discovering:
+#   - spins down after 15 minutes without traffic; the next request waits ~1 minute
+#     while the JVM starts. Nothing is lost, it is just slow to wake.
+#   - the filesystem is ephemeral. This app never writes to it — resumes go to
+#     Cloudinary — so that costs nothing here.
+#   - 750 instance-hours per month, enough for one service running continuously.
+
+services:
+  - type: web
+    name: devconnect-backend
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    region: singapore
+    healthCheckPath: /health
+
+    envVars:
+      # sync: false means "ask me in the dashboard, do not store it here". Every one of
+      # these is a credential or an address that must not live in a public repo.
+      - key: DB_URL          # jdbc:mysql://<aiven-host>:<port>/defaultdb?sslMode=REQUIRED
+        sync: false
+      - key: DB_USERNAME     # avnadmin on Aiven
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+
+      - key: REDIS_HOST      # your Upstash host
+        sync: false
+      - key: REDIS_PORT
+        value: 6379
+      - key: REDIS_PASSWORD
+        sync: false
+      - key: REDIS_SSL       # Upstash requires TLS, unlike a local Redis
+        value: true
+
+      - key: JWT_SECRET
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+
+      # Statements carry their parameter values, so this stays off in a log stream
+      # someone else can read.
+      - key: SHOW_SQL
+        value: false
+
+      # Set ADMIN_EMAIL and ADMIN_PASSWORD in the dashboard to seed an administrator on
+      # first boot, then delete them. Absent, no admin is created and you register
+      # normally — which is the safer default for something publicly reachable.
+
+      # Add once the client is deployed, set to its origin:
+      #   CORS_ALLOWED_ORIGINS=https://your-app.vercel.app
+
+# PORT is not listed on purpose: Render assigns it and server.port follows it.
