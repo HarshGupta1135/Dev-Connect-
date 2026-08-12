@@ -239,7 +239,13 @@ img { max-width: 100%; display: block; }
   /* Applies to every element opting out on small screens, not just buttons —
      the signed-in email chip uses it too. */
   .hide-sm { display: none !important; }
+  /* The counterpart: content that exists only inside the mobile menu, because
+     the bar has no room for it. Without this the menu holds a single link on a
+     signed-out visit and reads as broken. */
+  .show-sm { display: flex; flex-direction: column; gap: 8px; }
 }
+
+.show-sm { display: none; }
 
 /* ---------- buttons ---------- */
 

@@ -42,6 +42,16 @@ export default function Navbar() {
   // A tapped link on mobile should close the menu it was tapped in.
   useEffect(() => setOpen(false), [location.pathname]);
 
+  // Route changes cover most of it, but tapping the link for the page you are
+  // already on does not change the path — and an open menu with no way out is
+  // worse than no menu.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onKey = (event) => event.key === 'Escape' && setOpen(false);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const handleSignOut = () => {
     logout('Signed out.');
     navigate('/');
@@ -55,7 +65,9 @@ export default function Navbar() {
           DevConnect
         </Link>
 
-        <nav className="nav-links" data-open={open} aria-label="Main">
+        {/* Any click inside closes it, which covers tapping the link for the page
+            you are already on — the one case the route effect cannot see. */}
+        <nav className="nav-links" data-open={open} aria-label="Main" onClick={() => setOpen(false)}>
           {/* Plain links with explicit current state: NavLink matches on pathname
               alone, so both of these would light up together on /jobs. */}
           <Link to="/jobs" className="nav-link" aria-current={onJobs && !viewingSaved ? 'page' : undefined}>
@@ -78,6 +90,35 @@ export default function Navbar() {
               <NavLink to="/recruiter/jobs/new" className="nav-link">Post a job</NavLink>
             </>
           )}
+
+          {/* Small screens only. Everything .hide-sm strips out of the bar has to
+              live somewhere, and this menu is that somewhere. */}
+          <div className="show-sm">
+            <hr className="divider" style={{ margin: '6px 0' }} />
+
+            <button
+              type="button"
+              className="nav-link"
+              style={{ textAlign: 'left', background: 'none', border: 0, cursor: 'pointer', font: 'inherit' }}
+              onClick={() => {
+                setOpen(false);
+                openCommandPalette();
+              }}
+            >
+              Search jobs and pages…
+            </button>
+
+            {isAuthenticated ? (
+              <>
+                <span className="tiny faint" style={{ padding: '2px 11px' }}>{user.email}</span>
+                <button type="button" className="btn btn--outline btn--sm" onClick={handleSignOut}>
+                  Sign out
+                </button>
+              </>
+            ) : (
+              <Link to="/login" className="btn btn--outline btn--sm">Sign in</Link>
+            )}
+          </div>
         </nav>
 
         <div className="nav-actions">
