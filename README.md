@@ -202,6 +202,58 @@ dump taken from 8.0 should not be restored into a server a major version ahead o
 
 ---
 
+## ☁️ Deploying to Railway
+
+Add a **MySQL** service, a **Redis** service and a service pointed at this repo. The
+Dockerfile is detected automatically, and `railway.toml` pins that plus the health check
+at `/health`, so a failed migration fails the deploy instead of going live broken.
+
+### Variables
+
+Railway's own `DATABASE_URL` / `REDIS_URL` **cannot be used directly.** They are
+`mysql://user:pass@host:port/db` and `redis://default:pass@host:port`, while this app
+needs a JDBC URL and Redis split into host, port and password. Reference the individual
+variables instead — the `${{Service.VAR}}` syntax is Railway's, resolved at deploy time:
+
+| Variable | Value |
+| --- | --- |
+| `DB_URL` | `jdbc:mysql://${{MySQL.MYSQLHOST}}:${{MySQL.MYSQLPORT}}/${{MySQL.MYSQLDATABASE}}` |
+| `DB_USERNAME` | `${{MySQL.MYSQLUSER}}` |
+| `DB_PASSWORD` | `${{MySQL.MYSQLPASSWORD}}` |
+| `REDIS_HOST` | `${{Redis.REDISHOST}}` |
+| `REDIS_PORT` | `${{Redis.REDISPORT}}` |
+| `REDIS_PASSWORD` | `${{Redis.REDISPASSWORD}}` |
+| `REDIS_SSL` | `false` — TLS is an Upstash requirement, not Railway's internal network |
+| `JWT_SECRET` | a fresh random string, 32+ characters |
+| `MAIL_USERNAME`, `MAIL_PASSWORD` | Gmail address and app password |
+| `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | from Cloudinary |
+| `CORS_ALLOWED_ORIGINS` | the deployed client's origin, once it exists |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | optional; seeds one admin on first boot |
+
+Do not set `PORT` — Railway assigns it and `server.port` follows it.
+
+`ADMIN_PASSWORD` is what creates the administrator, and nothing is seeded without it.
+Set it to something you generate, log in once, then remove the variable.
+
+### First deploy
+
+Flyway finds an empty database and applies `V1`, so the schema builds itself with no
+manual step. Watch for `Migrating schema "devconnect" to version "1"` in the logs.
+
+To carry local data across, dump it and pipe it into Railway's MySQL over its **public**
+proxy — `MYSQL_PUBLIC_URL`, not the internal host, which is only reachable from inside
+their network:
+
+```bash
+docker exec devconnect-mysql sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --hex-blob devconnect' > dump.sql
+mysql -h <proxy-host> -P <proxy-port> -u root -p railway < dump.sql
+```
+
+Load it *before* the app's first boot, or Flyway will have created the schema and the
+dump's `CREATE TABLE` statements will collide.
+
+---
+
 ## 🧪 Testing Verification
 
 The test suite validates the caching performance and automatic scheduling. A sample execution yields the following logs:

@@ -51,8 +51,12 @@ EXPOSE 8080
 
 # /health is permitAll in SpringSecurity, so this needs no credentials. wget is
 # busybox's, already present in alpine — no extra package to install.
+#
+# ${PORT:-8080} rather than a literal: a platform that assigns the port at runtime sets
+# PORT, and the app follows it via server.port, so a hardcoded probe would report a
+# healthy container as unhealthy.
 HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-    CMD wget -qO- http://localhost:8080/health || exit 1
+    CMD wget -qO- "http://localhost:${PORT:-8080}/health" || exit 1
 
 # Exec form, so the JVM is PID 1 and receives SIGTERM directly on `docker stop`
 # and shuts down gracefully instead of being killed after the grace period.
