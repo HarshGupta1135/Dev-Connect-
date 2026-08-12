@@ -5,7 +5,10 @@ import { errorMessage } from '../api/client';
 import { applyToJob, fetchJob, fetchMyApplications } from '../api/endpoints';
 import MatchRing from '../components/MatchRing';
 import Modal from '../components/Modal';
+import SaveJobButton from '../components/SaveJobButton';
+import ShareButton from '../components/ShareButton';
 import StatusBadge from '../components/StatusBadge';
+import { rememberViewedJob } from '../hooks/useSavedJobs';
 import { Skeleton } from '../components/Skeleton';
 import { ReadingProgress } from '../components/ScrollHelpers';
 import { useAuth } from '../context/AuthContext';
@@ -36,7 +39,12 @@ export default function JobDetail() {
     setLoading(true);
 
     fetchJob(id)
-      .then((data) => !cancelled && setJob(data))
+      .then((data) => {
+        if (cancelled) return;
+        setJob(data);
+        // Feeds the command palette's "recently viewed" list.
+        rememberViewedJob(data);
+      })
       .catch((error) => {
         if (!cancelled) toast.error(errorMessage(error, 'That job could not be loaded.'));
       })
@@ -143,12 +151,15 @@ export default function JobDetail() {
                 <span className="chip">{experienceLabel(job.experienceRequired)}</span>
               </div>
             </div>
-            {typeof job.matchPercentage === 'number' && (
-              <div className="stack" style={{ alignItems: 'center', gap: 6 }}>
-                <MatchRing value={job.matchPercentage} size={68} stroke={5} />
-                <span className="tiny faint mono">skill match</span>
-              </div>
-            )}
+            <div className="row" style={{ gap: 10, flex: 'none' }}>
+              <SaveJobButton jobId={job.id} title={job.title} />
+              {typeof job.matchPercentage === 'number' && (
+                <div className="stack" style={{ alignItems: 'center', gap: 6 }}>
+                  <MatchRing value={job.matchPercentage} size={68} stroke={5} />
+                  <span className="tiny faint mono">skill match</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <hr className="divider" />
@@ -194,7 +205,7 @@ export default function JobDetail() {
 
           <div className="spread">
             {canApply && (
-              <button type="button" className="btn btn--lg" onClick={() => setModalOpen(true)}>
+              <button type="button" className="btn btn--lg btn--glow" onClick={() => setModalOpen(true)}>
                 Apply now
               </button>
             )}
@@ -232,8 +243,28 @@ export default function JobDetail() {
             {isAuthenticated && !isDeveloper && (
               <span className="small muted">You are signed in as a recruiter, so applying is disabled.</span>
             )}
+
+            <ShareButton title={job.title} text={`${job.title} at ${job.companyName || 'a company'} on DevConnect`} />
           </div>
         </div>
+
+        {/* Follows the reader down a long description, so applying never means
+            scrolling back up. Only while there is something to act on. */}
+        {canApply && (
+          <div className="sticky-cta" style={{ marginTop: 18 }}>
+            <div className="stack" style={{ gap: 1, minWidth: 0, marginRight: 'auto' }}>
+              <strong style={{ fontSize: '0.95rem' }}>{job.title}</strong>
+              <span className="tiny faint">
+                {job.companyName || 'Company undisclosed'}
+                {expiresIn !== null && expiresIn >= 0 ? ` · closes in ${expiresIn} day${expiresIn === 1 ? '' : 's'}` : ''}
+              </span>
+            </div>
+            <SaveJobButton jobId={job.id} title={job.title} />
+            <button type="button" className="btn btn--glow" onClick={() => setModalOpen(true)}>
+              Apply now
+            </button>
+          </div>
+        )}
       </div>
 
       <Modal

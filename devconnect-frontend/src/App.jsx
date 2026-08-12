@@ -3,6 +3,9 @@ import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
+import Ambient from './components/Ambient';
+import CommandPalette from './components/CommandPalette';
+import RouteProgress from './components/RouteProgress';
 import { BackToTopButton, ScrollToTopOnNavigate } from './components/ScrollHelpers';
 import { useTheme } from './context/ThemeContext';
 import Landing from './pages/Landing';
@@ -21,7 +24,12 @@ export default function App() {
   const { resolved } = useTheme();
 
   return (
-    <div className="shell">
+    <>
+      {/* Outside .shell so the drifting colour field sits behind everything. */}
+      <Ambient />
+
+      <div className="shell">
+      <RouteProgress />
       <ScrollToTopOnNavigate />
       <Navbar />
 
@@ -84,6 +92,8 @@ export default function App() {
 
       <Footer />
       <BackToTopButton />
+      {/* Owns its own Ctrl/⌘K and "/" listeners, so it works from any route. */}
+      <CommandPalette />
 
       <Toaster
         position="bottom-right"
@@ -103,6 +113,7 @@ export default function App() {
           error: { iconTheme: { primary: '#be123c', secondary: '#ffffff' } },
         }}
       />
-    </div>
+      </div>
+    </>
   );
 }

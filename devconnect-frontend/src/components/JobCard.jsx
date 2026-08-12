@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import MatchRing from './MatchRing';
+import SaveJobButton from './SaveJobButton';
 import StatusBadge from './StatusBadge';
+import { useSpotlight } from '../hooks/useSpotlight';
 import {
   daysUntil,
   effectiveJobStatus,
@@ -14,9 +16,14 @@ export default function JobCard({ job, showStatus = false }) {
   const expiresIn = daysUntil(job.expiresAt);
   const closingSoon = expiresIn !== null && expiresIn >= 0 && expiresIn <= 7;
   const hasMatch = typeof job.matchPercentage === 'number';
+  const spotlight = useSpotlight();
 
   return (
-    <article className="card card--hover job-card">
+    <article
+      className="card card--hover job-card spot"
+      ref={spotlight.ref}
+      onPointerMove={spotlight.onPointerMove}
+    >
       <div className="job-card__head">
         <div className="stack" style={{ gap: 3, minWidth: 0 }}>
           <Link to={`/jobs/${job.id}`} className="job-card__title">
@@ -24,7 +31,10 @@ export default function JobCard({ job, showStatus = false }) {
           </Link>
           <span className="job-card__company">{job.companyName || 'Company undisclosed'}</span>
         </div>
-        {hasMatch && <MatchRing value={job.matchPercentage} />}
+        <div className="row" style={{ gap: 4, flex: 'none' }}>
+          <SaveJobButton jobId={job.id} title={job.title} />
+          {hasMatch && <MatchRing value={job.matchPercentage} />}
+        </div>
       </div>
 
       <div className="job-card__meta">

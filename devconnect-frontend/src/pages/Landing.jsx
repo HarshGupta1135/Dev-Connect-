@@ -2,9 +2,17 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { fetchJobs } from '../api/endpoints';
 import JobCard from '../components/JobCard';
+import MatchExplainer from '../components/MatchExplainer';
 import Reveal from '../components/Reveal';
 import { JobCardSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
+import { useSpotlight } from '../hooks/useSpotlight';
+
+/** Duplicated so the strip can loop seamlessly at -50%. */
+const TICKER_SKILLS = [
+  'Java', 'Spring Boot', 'React', 'TypeScript', 'Python', 'MySQL', 'Redis', 'Docker',
+  'Kubernetes', 'AWS', 'Node.js', 'GraphQL', 'PostgreSQL', 'Kafka', 'Go', 'Rust',
+];
 
 /** Counts up to the real figure once it arrives, so the numbers feel live. */
 function CountUp({ value = 0, duration = 900 }) {
@@ -57,9 +65,12 @@ export default function Landing() {
       <section className="hero">
         <div className="hero__grid" aria-hidden="true" />
         <div className="wrap hero__inner">
-          <span className="eyebrow">Skill-matched hiring</span>
-          <h1 style={{ maxWidth: '18ch' }}>
-            Get found for what you <em>actually</em> build.
+          <span className="chip chip--accent" style={{ gap: 8 }}>
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', boxShadow: '0 0 8px currentColor' }} />
+            Skill-matched hiring
+          </span>
+          <h1 style={{ maxWidth: '19ch' }}>
+            Get found for what you <em className="grad-text">actually</em> build.
           </h1>
           <p className="lede">
             DevConnect scores every opening against the skills on your profile, so the roles you
@@ -85,13 +96,29 @@ export default function Landing() {
 
           <div className="hero__cta">
             {isAuthenticated ? (
-              <Link to={homeFor} className="btn btn--lg">Go to my dashboard</Link>
+              <Link to={homeFor} className="btn btn--lg btn--glow">Go to my dashboard</Link>
             ) : (
               <>
-                <Link to="/register" className="btn btn--lg">Create free account</Link>
+                <Link to="/register" className="btn btn--lg btn--glow">Create free account</Link>
                 <Link to="/jobs" className="btn btn--lg btn--outline">Browse {total > 0 ? `${total} ` : ''}open roles</Link>
               </>
             )}
+          </div>
+
+          <p className="tiny faint" style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+            Press <kbd>Ctrl</kbd><kbd>K</kbd> anywhere to search roles, jump between pages or switch theme.
+          </p>
+        </div>
+      </section>
+
+      {/* The skills the platform actually scores against — concrete, and it fills
+          the band under the hero with motion rather than another paragraph. */}
+      <section className="wrap" style={{ paddingBottom: 8 }}>
+        <div className="ticker" aria-hidden="true">
+          <div className="ticker__track">
+            {[...TICKER_SKILLS, ...TICKER_SKILLS].map((skill, index) => (
+              <span key={`${skill}-${index}`} className="chip">{skill}</span>
+            ))}
           </div>
         </div>
       </section>
@@ -154,9 +181,13 @@ export default function Landing() {
           </div>
         </Reveal>
 
-        <div className="feature-grid">
-          <Reveal delay={0}>
-            <div className="card feature">
+        <div className="bento">
+          <Reveal delay={0} className="span-4">
+            <MatchExplainer />
+          </Reveal>
+
+          <Reveal delay={80}>
+            <div className="card feature spot lit" style={{ height: '100%' }}>
               <span className="feature__num">FOR DEVELOPERS</span>
               <h3>List the skills you really have</h3>
               <p className="small muted">
@@ -164,36 +195,37 @@ export default function Landing() {
                 then scored against it.
               </p>
               {!isAuthenticated && (
-                <Link to="/register" className="btn btn--soft btn--sm" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                <Link to="/register" className="btn btn--soft btn--sm" style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
                   Create profile
                 </Link>
               )}
               {isDeveloper && (
-                <Link to="/developer/profile" className="btn btn--soft btn--sm" style={{ alignSelf: 'flex-start', marginTop: 4 }}>
+                <Link to="/developer/profile" className="btn btn--soft btn--sm" style={{ alignSelf: 'flex-start', marginTop: 'auto' }}>
                   Edit my profile
                 </Link>
               )}
             </div>
           </Reveal>
 
-          <Reveal delay={80}>
-            <div className="card feature">
+          <Reveal delay={140} className="span-3">
+            <div className="card feature spot" style={{ height: '100%' }}>
               <span className="feature__num">FOR RECRUITERS</span>
               <h3>Post a role with its real requirements</h3>
               <p className="small muted">
                 Pick the skills that matter, set the experience bar, and let candidates self-select
-                against a visible match score.
+                against a visible match score — then review each applicant's full profile,
+                shortlist or pass in one click.
               </p>
             </div>
           </Reveal>
 
-          <Reveal delay={160}>
-            <div className="card feature">
+          <Reveal delay={200} className="span-3">
+            <div className="card feature spot" style={{ height: '100%' }}>
               <span className="feature__num">FOR BOTH</span>
               <h3>Decisions, not silence</h3>
               <p className="small muted">
                 Shortlist or pass, and the candidate hears about it by email — with the status
-                visible in their dashboard either way.
+                visible in their dashboard either way. No application vanishes into a queue.
               </p>
             </div>
           </Reveal>

@@ -1,38 +1,36 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+import ThemeControl from './ThemeControl';
+import { openCommandPalette } from './CommandPalette';
+import { useSavedJobs } from '../hooks/useSavedJobs';
 
-function ThemeButton() {
-  const { resolved, toggle } = useTheme();
+/** Looks like a search field because that is what it opens. */
+function PaletteTrigger() {
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+
   return (
-    <button
-      type="button"
-      className="btn btn--ghost btn--icon"
-      onClick={toggle}
-      aria-label={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
-      title={`Switch to ${resolved === 'dark' ? 'light' : 'dark'} theme`}
-    >
-      {resolved === 'dark' ? (
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="4.2" />
-          <path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M19.1 4.9l-1.4 1.4M6.3 17.7l-1.4 1.4" />
-        </svg>
-      ) : (
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a6.6 6.6 0 0 0 9.8 9.8z" />
-        </svg>
-      )}
+    <button type="button" className="cmdk-trigger" onClick={openCommandPalette} aria-label="Open command palette">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ flex: 'none' }}>
+        <circle cx="11" cy="11" r="7" />
+        <path d="M20 20l-3.5-3.5" />
+      </svg>
+      <span>Search or jump…</span>
+      <span className="kbd">{isMac ? '⌘' : 'Ctrl'} K</span>
     </button>
   );
 }
 
 export default function Navbar() {
   const { isAuthenticated, isDeveloper, isRecruiter, user, logout } = useAuth();
+  const { count: savedCount } = useSavedJobs();
   const [stuck, setStuck] = useState(false);
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+
+  const onJobs = location.pathname === '/jobs';
+  const viewingSaved = onJobs && new URLSearchParams(location.search).get('saved') === '1';
 
   useEffect(() => {
     const onScroll = () => setStuck(window.scrollY > 6);
@@ -58,7 +56,16 @@ export default function Navbar() {
         </Link>
 
         <nav className="nav-links" data-open={open} aria-label="Main">
-          <NavLink to="/jobs" className="nav-link">Browse jobs</NavLink>
+          {/* Plain links with explicit current state: NavLink matches on pathname
+              alone, so both of these would light up together on /jobs. */}
+          <Link to="/jobs" className="nav-link" aria-current={onJobs && !viewingSaved ? 'page' : undefined}>
+            Browse jobs
+          </Link>
+          {savedCount > 0 && (
+            <Link to="/jobs?saved=1" className="nav-link" aria-current={viewingSaved ? 'page' : undefined}>
+              Saved <span className="mono tiny faint">{savedCount}</span>
+            </Link>
+          )}
           {isDeveloper && (
             <>
               <NavLink to="/developer/dashboard" className="nav-link">Dashboard</NavLink>
@@ -74,7 +81,8 @@ export default function Navbar() {
         </nav>
 
         <div className="nav-actions">
-          <ThemeButton />
+          <PaletteTrigger />
+          <ThemeControl />
 
           {isAuthenticated ? (
             <>

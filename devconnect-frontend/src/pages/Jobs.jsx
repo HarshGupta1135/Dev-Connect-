@@ -10,6 +10,7 @@ import Reveal from '../components/Reveal';
 import SkillPicker from '../components/SkillPicker';
 import { JobCardSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
+import { useSavedJobs } from '../hooks/useSavedJobs';
 import { titleCase } from '../utils/format';
 
 const PAGE_SIZE = 9;
@@ -28,6 +29,17 @@ const SORTS = [
 export default function Jobs() {
   const [params, setParams] = useSearchParams();
   const { isDeveloper } = useAuth();
+  const { count: savedCount, isSaved, clear } = useSavedJobs();
+
+  /*
+   * ?saved=1 filters the fetched page to bookmarked roles.
+   *
+   * Client-side because bookmarks live in localStorage and the API cannot filter
+   * on them. A larger page is requested in that mode so the filter has the whole
+   * catalogue to work against rather than page one of it — fine at this scale,
+   * and the alternative is one request per saved id.
+   */
+  const savedOnly = params.get('saved') === '1';
 
   const page = Number(params.get('page') || 0);
   const sort = params.get('sort') || 'createdAt,desc';
@@ -66,7 +78,7 @@ export default function Jobs() {
     let cancelled = false;
     setLoading(true);
 
-    fetchJobs({ skills, location: urlLocation, type, page, size: PAGE_SIZE, sort })
+    fetchJobs({ skills, location: urlLocation, type, page, size: savedOnly ? 100 : PAGE_SIZE, sort })
       .then((data) => {
         if (!cancelled) setResult(data);
       })
@@ -83,22 +95,48 @@ export default function Jobs() {
     return () => {
       cancelled = true;
     };
-  }, [skills, urlLocation, type, page, sort]);
+  }, [skills, urlLocation, type, page, sort, savedOnly]);
 
-  const jobs = result?.content || [];
+  const fetched = result?.content || [];
+  const jobs = savedOnly ? fetched.filter((job) => isSaved(job.id)) : fetched;
   const activeFilters = skills.length + (urlLocation ? 1 : 0) + (type ? 1 : 0);
+
+  const setSavedOnly = (value) => patch({ saved: value ? '1' : '' });
 
   return (
     <div className="wrap section--tight page-enter" style={{ paddingTop: 34, paddingBottom: 72 }}>
-      <div className="stack" style={{ gap: 8, marginBottom: 26 }}>
-        <span className="eyebrow">Open roles</span>
-        <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.6rem)' }}>Browse jobs</h1>
+      <div className="stack" style={{ gap: 8, marginBottom: 22 }}>
+        <span className="eyebrow">{savedOnly ? 'Your shortlist' : 'Open roles'}</span>
+        <h1 style={{ fontSize: 'clamp(1.9rem, 4vw, 2.6rem)' }}>
+          {savedOnly ? <>Saved <span className="grad-text">jobs</span></> : <>Browse <span className="grad-text">jobs</span></>}
+        </h1>
         <p className="lede">
-          {isDeveloper
-            ? 'Ordered by how well each role matches the skills on your profile.'
-            : 'Sign in as a developer to see how well each role matches your skills.'}
+          {savedOnly
+            ? 'Bookmarked on this device — they are not tied to your account, so another browser will not see them.'
+            : isDeveloper
+              ? 'Ordered by how well each role matches the skills on your profile.'
+              : 'Sign in as a developer to see how well each role matches your skills.'}
         </p>
       </div>
+
+      {/* Only offered once something is saved; an empty toggle is just noise. */}
+      {savedCount > 0 && (
+        <div className="row" style={{ gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+          <div className="tabs" role="tablist" aria-label="Job view">
+            <button type="button" className="tab" role="tab" aria-selected={!savedOnly} onClick={() => setSavedOnly(false)}>
+              All roles
+            </button>
+            <button type="button" className="tab" role="tab" aria-selected={savedOnly} onClick={() => setSavedOnly(true)}>
+              Saved <span className="faint mono tiny">{savedCount}</span>
+            </button>
+          </div>
+          {savedOnly && (
+            <button type="button" className="btn btn--ghost btn--sm" onClick={clear}>
+              Clear saved
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="jobs-layout">
         <aside className="filter-rail">
@@ -155,7 +193,9 @@ export default function Jobs() {
             <span className="small muted" aria-live="polite">
               {loading
                 ? 'Searching…'
-                : `${result?.totalElements ?? 0} role${result?.totalElements === 1 ? '' : 's'} found`}
+                : savedOnly
+                  ? `${jobs.length} of your ${savedCount} saved role${savedCount === 1 ? '' : 's'} still open`
+                  : `${result?.totalElements ?? 0} role${result?.totalElements === 1 ? '' : 's'} found`}
             </span>
             <div className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <label htmlFor="sort" className="tiny faint mono" style={{ textTransform: 'uppercase', letterSpacing: '0.1em' }}>
@@ -182,22 +222,30 @@ export default function Jobs() {
             </div>
           ) : jobs.length === 0 ? (
             <EmptyState
-              mark="⌕"
-              title="No roles match those filters"
+              mark={savedOnly ? '★' : '⌕'}
+              title={savedOnly ? 'None of your saved roles are still open' : 'No roles match those filters'}
               message={
-                activeFilters > 0
-                  ? 'Try removing a filter, or widening the location.'
-                  : 'There are no active job postings yet. Check back soon.'
+                savedOnly
+                  ? 'Saved roles disappear from here once they close or expire. The bookmarks stay until you clear them.'
+                  : activeFilters > 0
+                    ? 'Try removing a filter, or widening the location.'
+                    : 'There are no active job postings yet. Check back soon.'
               }
               action={
-                activeFilters > 0 && (
-                  <button
-                    type="button"
-                    className="btn btn--outline btn--sm"
-                    onClick={() => setParams(new URLSearchParams(), { replace: true })}
-                  >
-                    Clear filters
+                savedOnly ? (
+                  <button type="button" className="btn btn--outline btn--sm" onClick={() => setSavedOnly(false)}>
+                    Browse all roles
                   </button>
+                ) : (
+                  activeFilters > 0 && (
+                    <button
+                      type="button"
+                      className="btn btn--outline btn--sm"
+                      onClick={() => setParams(new URLSearchParams(), { replace: true })}
+                    >
+                      Clear filters
+                    </button>
+                  )
                 )
               }
             />
@@ -211,11 +259,15 @@ export default function Jobs() {
             </div>
           )}
 
-          <Pagination
-            page={page}
-            totalPages={result?.totalPages || 0}
-            onChange={(next) => patch({ page: String(next) }, { resetPage: false })}
-          />
+          {/* Hidden while filtering saved roles: that view fetches one large page
+              and filters it here, so the API's page count no longer describes it. */}
+          {!savedOnly && (
+            <Pagination
+              page={page}
+              totalPages={result?.totalPages || 0}
+              onChange={(next) => patch({ page: String(next) }, { resetPage: false })}
+            />
+          )}
         </section>
       </div>
     </div>
