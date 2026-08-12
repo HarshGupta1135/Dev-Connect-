@@ -5,6 +5,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -19,6 +20,26 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(UnauthorizedException.class)
     public ResponseEntity<ApiResponse<Void>> handleUnauthorizedException(UnauthorizedException ex) {
         return new ResponseEntity<>(ApiResponse.error(ex.getMessage()), HttpStatus.FORBIDDEN);
+    }
+
+    /**
+     * A @PreAuthorize check that rejected the caller's role.
+     *
+     * Needed because this advice exists at all: method security throws
+     * AuthorizationDeniedException from inside the controller invocation, and the
+     * catch-all below would otherwise claim it as an unexpected 500 — turning "your role
+     * cannot do this" into "the server is broken", which clients cannot act on and which
+     * hides genuine faults among the noise. Spring Security answers 403 itself when the
+     * request never reaches a controller; this makes the two paths agree.
+     *
+     * AuthorizationDeniedException extends AccessDeniedException, so the parent covers
+     * both method security and any manual check.
+     */
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException ex) {
+        return new ResponseEntity<>(
+                ApiResponse.error("You are not authorized to perform this action"),
+                HttpStatus.FORBIDDEN);
     }
 
     @ExceptionHandler(ConflictException.class)
