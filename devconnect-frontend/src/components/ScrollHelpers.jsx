@@ -1,37 +1,79 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 
-/** Every navigation should start at the top of the new page. */
+/**
+ * Every navigation starts at the top of the new page.
+ *
+ * Instantly, not smoothly: the new page has already rendered by this point, so a
+ * smooth scroll means watching the previous scroll position animate away before
+ * the content you asked for is readable. Snapping is what makes a navigation feel
+ * immediate.
+ */
 export function ScrollToTopOnNavigate() {
   const { pathname } = useLocation();
 
   useEffect(() => {
-    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    window.scrollTo({ top: 0, behavior: reduced ? 'auto' : 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }, [pathname]);
 
   return null;
 }
 
-/** Reading-progress line across the top of long pages. */
+/**
+ * Reading-progress line across the top of long pages.
+ *
+ * Writes the width straight to the node inside one requestAnimationFrame per
+ * frame. It used to setState on every scroll event, which re-rendered React
+ * continuously while scrolling, and measured scrollHeight and innerHeight each
+ * time — forcing a synchronous layout mid-scroll. Both are why long pages
+ * stuttered. The page height is now measured only when it can actually change.
+ */
 export function ReadingProgress() {
-  const [width, setWidth] = useState(0);
+  const ref = useRef(null);
 
   useEffect(() => {
-    const onScroll = () => {
-      const scrollable = document.documentElement.scrollHeight - window.innerHeight;
-      setWidth(scrollable > 40 ? (window.scrollY / scrollable) * 100 : 0);
+    let frame = 0;
+    let scrollable = 0;
+
+    const measure = () => {
+      scrollable = document.documentElement.scrollHeight - window.innerHeight;
     };
-    onScroll();
+
+    const paint = () => {
+      frame = 0;
+      if (!ref.current) return;
+      const value = scrollable > 40 ? Math.min(100, (window.scrollY / scrollable) * 100) : 0;
+      ref.current.style.width = `${value}%`;
+    };
+
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(paint);
+    };
+
+    const onResize = () => {
+      measure();
+      onScroll();
+    };
+
+    measure();
+    paint();
     window.addEventListener('scroll', onScroll, { passive: true });
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
+
+    /* Images and late-arriving data change the page height without a resize or a
+       scroll, which would otherwise leave the bar reading against a stale total. */
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(onResize) : null;
+    observer?.observe(document.body);
+
     return () => {
+      if (frame) cancelAnimationFrame(frame);
       window.removeEventListener('scroll', onScroll);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
+      observer?.disconnect();
     };
   }, []);
 
-  return <div className="progress-bar" style={{ width: `${width}%` }} aria-hidden="true" />;
+  return <div className="progress-bar" style={{ width: 0 }} aria-hidden="true" ref={ref} />;
 }
 
 /** Appears once the viewer is far enough down to want it. */

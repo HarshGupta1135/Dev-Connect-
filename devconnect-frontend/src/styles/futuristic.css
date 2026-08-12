@@ -34,8 +34,16 @@
 }
 
 /* ---------- aurora ----------
-   Three slow-drifting blobs, fixed behind the app. The shell is lifted
-   above them so nothing here can intercept a pointer event. */
+   One fixed layer painted with three soft radial gradients.
+
+   This was three 46vw circles under filter: blur(90px), each with
+   will-change: transform. It looked the same and scrolled badly: a blur that
+   wide has to be re-rasterised as it moves, and will-change promoted each to its
+   own oversized GPU texture. A radial gradient is rasterised once and costs
+   nothing per frame, so the same soft field now composites for free.
+
+   The layer is oversized and centred so the slow drift never exposes an edge.
+   The drift is a plain transform on an unfiltered layer — composited, no repaint. */
 
 .aurora {
   position: fixed;
@@ -43,45 +51,32 @@
   z-index: 0;
   overflow: hidden;
   pointer-events: none;
-}
-
-.aurora__blob {
-  position: absolute;
-  width: 46vw;
-  height: 46vw;
-  min-width: 320px;
-  min-height: 320px;
-  border-radius: 50%;
-  filter: blur(90px);
   opacity: var(--aurora-opacity);
-  will-change: transform;
 }
 
-.aurora__blob:nth-child(1) {
-  background: var(--aurora-1);
-  top: -14vw;
-  left: -6vw;
-  animation: drift-a 26s ease-in-out infinite alternate;
+.aurora__field {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 150%;
+  height: 150%;
+  transform: translate3d(-50%, -50%, 0);
+  background-image:
+    radial-gradient(38% 34% at 18% 16%, var(--aurora-1), transparent 68%),
+    radial-gradient(34% 30% at 82% 12%, var(--aurora-2), transparent 66%),
+    radial-gradient(40% 36% at 62% 78%, var(--aurora-3), transparent 70%);
+  animation: drift 64s ease-in-out infinite alternate;
 }
 
-.aurora__blob:nth-child(2) {
-  background: var(--aurora-2);
-  top: -8vw;
-  right: -10vw;
-  animation: drift-b 32s ease-in-out infinite alternate;
+@keyframes drift {
+  to { transform: translate3d(calc(-50% + 3vw), calc(-50% - 2vw), 0) scale(1.08); }
 }
 
-.aurora__blob:nth-child(3) {
-  background: var(--aurora-3);
-  top: 36vw;
-  left: 44vw;
-  opacity: calc(var(--aurora-opacity) * 0.65);
-  animation: drift-c 38s ease-in-out infinite alternate;
+/* Mobile GPUs get the field without the movement — the drift is decoration, and
+   a large animated layer is the last thing a phone needs while scrolling. */
+@media (max-width: 760px) {
+  .aurora__field { animation: none; }
 }
-
-@keyframes drift-a { to { transform: translate3d(12vw, 8vw, 0) scale(1.15); } }
-@keyframes drift-b { to { transform: translate3d(-10vw, 12vw, 0) scale(1.1); } }
-@keyframes drift-c { to { transform: translate3d(-14vw, -10vw, 0) scale(0.9); } }
 
 /* Fine grain: stops the wide gradients banding on cheap panels and gives the
    flat surfaces some texture. */
@@ -100,15 +95,20 @@
 
 .glass {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--glass-line);
 }
 
+/* The navbar is sticky, so whatever sits behind it is re-sampled and re-blurred
+   on every scroll frame — this is the most expensive property on the page and
+   the radius drives the cost. 10px still reads as glass; the saturate() was a
+   second filter pass for an effect nobody could point to. The surface is also
+   made more opaque to compensate, so less needs to show through. */
 .nav {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
 }
 
 /* ---------- gradient and glow ---------- */
@@ -353,9 +353,11 @@ kbd, .kbd {
   flex-wrap: wrap;
   padding: 12px 16px;
   border-radius: var(--r-lg);
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(170%);
-  -webkit-backdrop-filter: blur(20px) saturate(170%);
+  /* Sticky, so the same per-frame cost as the navbar applies. Mostly opaque with
+     a small blur rather than heavy glass. */
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border: 1px solid var(--glass-line);
   box-shadow: var(--shadow-lg);
 }
@@ -390,5 +392,5 @@ kbd, .kbd {
 .seg button[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
 
 @media (prefers-reduced-motion: reduce) {
-  .aurora__blob, .ticker__track { animation: none !important; }
+  .aurora__field, .ticker__track { animation: none !important; }
 }
