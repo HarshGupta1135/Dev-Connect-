@@ -181,7 +181,7 @@ on the host — so it starts empty, with only the admin user `DataInitializer` c
 To copy an existing local database across:
 
 ```bash
-# 1. dump the host database (--hex-blob matters: users.role is a serialised blob)
+# 1. dump the host database
 mysqldump -uroot -p --single-transaction --hex-blob --databases devconnect > devconnect-host.sql
 
 # 2. start MySQL alone and let it become healthy, before the app can create a schema
