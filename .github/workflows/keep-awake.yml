@@ -30,25 +30,32 @@ concurrency:
 jobs:
   ping:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Comfortably above the worst case below (120s + 60s). It was 5 minutes against
+    # a 360-second curl budget, so every run that met a sleeping backend was killed
+    # by its own timeout and reported "cancelled" — which reads as a scheduling
+    # quirk rather than the outage it actually was.
+    timeout-minutes: 8
     steps:
       - name: Wake the API
         run: |
           BASE="https://devconnect-backend-u07y.onrender.com"
 
-          # A cold start can take well over a minute, so this has to be patient
-          # rather than fail and leave the service asleep.
-          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 240 "$BASE/health" || echo "000")
+          # Patient enough for a cold start, bounded well inside the job timeout.
+          code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 "$BASE/health" || echo "000")
           echo "health: $code"
 
           # Hits the database too. /health touches nothing, so pinging only that
-          # would keep Render awake while letting Aiven idle down separately.
-          jobs_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 120 "$BASE/api/jobs?page=0&size=1" || echo "000")
+          # would keep Render awake while letting Aiven idle down separately — and
+          # an idle Aiven is what takes the whole backend down with it.
+          jobs_code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$BASE/api/jobs?page=0&size=1" || echo "000")
           echo "jobs: $jobs_code"
 
-          # Fails the run only if the service is genuinely unreachable, so a red
-          # cross in the Actions tab means something worth looking at.
           if [ "$code" != "200" ]; then
-            echo "::error::Backend did not return 200 from /health (got $code)"
+            echo "::error::Backend did not return 200 from /health (got $code). If this persists, check whether the Aiven database has powered off — the app cannot start without it."
+            exit 1
+          fi
+
+          if [ "$jobs_code" != "200" ]; then
+            echo "::error::/api/jobs returned $jobs_code — the API is up but the database is not answering."
             exit 1
           fi
