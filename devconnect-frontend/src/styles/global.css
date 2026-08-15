@@ -13,8 +13,10 @@
   --surface-3: #e4e8ef;
   --ink: #101521;
   --ink-2: #47506180;
-  --ink-muted: #566072;
-  --ink-faint: #8b95a6;
+  /* A step darker than they were: on the light paper the old values sat near the
+     contrast floor, and secondary text is most of what a page says. */
+  --ink-muted: #4a5468;
+  --ink-faint: #737f93;
   --line: #dde2ea;
   --line-strong: #c6cedb;
 

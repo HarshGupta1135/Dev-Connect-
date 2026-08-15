@@ -11,25 +11,36 @@
    ============================================================ */
 
 :root {
-  --grad: linear-gradient(120deg, var(--accent), var(--accent-2));
+  /* Light-mode gradient uses deeper endpoints than the raw accents: the cyan in
+     particular is a hover colour, not a text colour, and gradient headings set
+     in it were part of why light mode read as washed out. */
+  --grad: linear-gradient(120deg, #4338ca, #0e7490);
   --glass-bg: color-mix(in srgb, var(--surface) 72%, transparent);
   --glass-line: color-mix(in srgb, var(--ink) 9%, transparent);
   --glow-accent: 0 8px 34px -10px color-mix(in srgb, var(--accent) 62%, transparent);
   --aurora-1: var(--accent);
   --aurora-2: var(--accent-2);
   --aurora-3: #a855f7;
-  --aurora-opacity: 0.26;
+  /* On white paper the colour field sits behind near-transparent surfaces, so at
+     the old 0.26 it tinted every card grey-blue and cost the whole theme its
+     contrast. Dark absorbs far more before anything washes. */
+  --aurora-opacity: 0.13;
+  --grain-opacity: 0.02;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    --grad: linear-gradient(120deg, var(--accent), var(--accent-2));
     --aurora-opacity: 0.4;
+    --grain-opacity: 0.035;
     --glass-bg: color-mix(in srgb, var(--surface) 62%, transparent);
   }
 }
 
 :root[data-theme='dark'] {
+  --grad: linear-gradient(120deg, var(--accent), var(--accent-2));
   --aurora-opacity: 0.4;
+  --grain-opacity: 0.035;
   --glass-bg: color-mix(in srgb, var(--surface) 62%, transparent);
 }
 
@@ -85,7 +96,7 @@
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: var(--grain-opacity, 0.03);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
@@ -106,7 +117,7 @@
    second filter pass for an effect nobody could point to. The surface is also
    made more opaque to compensate, so less needs to show through. */
 .nav {
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  background: color-mix(in srgb, var(--paper) 92%, transparent);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -396,7 +407,7 @@ kbd, .kbd {
 }
 
 /* ============================================================
-   Polish layer — the details that read as "finished"
+   Polish layer ï¿½ the details that read as "finished"
    ============================================================ */
 
 /* ---------- scrollbars ----------
@@ -540,6 +551,34 @@ kbd, .kbd {
   border-top: 1px solid var(--line);
   font-size: 0.78rem;
   color: var(--ink-faint);
+}
+
+/* ---------- primary buttons ----------
+   Only the unmodified variant: every other variant sets its own --btn-bg, and a
+   gradient painted over all of them would flatten the vocabulary back to one
+   button. The lift is transform + shadow â€” composited, nothing repaints. */
+
+.btn:not(.btn--ghost):not(.btn--outline):not(.btn--soft):not(.btn--danger):not(.btn--good) {
+  background-image: linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 72%, var(--accent-2)));
+  border: 0;
+}
+.btn:not(.btn--ghost):not(.btn--outline):not(.btn--soft):not(.btn--danger):not(.btn--good):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px -6px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+.btn:not(.btn--ghost):not(.btn--outline):not(.btn--soft):not(.btn--danger):not(.btn--good):active {
+  transform: translateY(0) scale(0.99);
+}
+
+/* ---------- stat numbers ----------
+   Scoped to the landing strip: dashboard stat values colour-code by state
+   (green active, red closed), and a global gradient would erase that. */
+
+.stat-grad .stat-cell__value {
+  background: var(--grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 /* ---------- 404 ---------- */

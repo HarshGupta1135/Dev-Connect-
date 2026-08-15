@@ -125,7 +125,7 @@ export default function Landing() {
 
       <section className="wrap section--tight">
         <Reveal>
-          <div className="stat-strip">
+          <div className="stat-strip stat-grad">
             <div className="stat-cell">
               <span className="stat-cell__value"><CountUp value={total} /></span>
               <span className="eyebrow">Active roles</span>
