@@ -55,6 +55,10 @@ public class DeveloperProfileService {
                 .location(developerProfileRequest.getLocation())
                 .yearsExp(developerProfileRequest.getYearsExp())
                 .linkedinUrl(developerProfileRequest.getLinkedinUrl())
+                .phone(developerProfileRequest.getPhone())
+                .address(developerProfileRequest.getAddress())
+                .city(developerProfileRequest.getCity())
+                .pincode(developerProfileRequest.getPincode())
                 .skills(skillSet)
                 .build();
 
@@ -90,6 +94,22 @@ public class DeveloperProfileService {
 
         if (developerProfileRequest.getLinkedinUrl() != null) {
             profile.setLinkedinUrl(developerProfileRequest.getLinkedinUrl());
+        }
+
+        if (developerProfileRequest.getPhone() != null) {
+            profile.setPhone(developerProfileRequest.getPhone());
+        }
+
+        if (developerProfileRequest.getAddress() != null) {
+            profile.setAddress(developerProfileRequest.getAddress());
+        }
+
+        if (developerProfileRequest.getCity() != null) {
+            profile.setCity(developerProfileRequest.getCity());
+        }
+
+        if (developerProfileRequest.getPincode() != null) {
+            profile.setPincode(developerProfileRequest.getPincode());
         }
 
         if (developerProfileRequest.getSkills() != null) {
@@ -128,6 +148,10 @@ public class DeveloperProfileService {
                 .yearsExp(profile.getYearsExp())
                 .resumeUrl(profile.getResumeUrl())
                 .linkedinUrl(profile.getLinkedinUrl())
+                .phone(profile.getPhone())
+                .address(profile.getAddress())
+                .city(profile.getCity())
+                .pincode(profile.getPincode())
                 .skills(skillNames)
                 .build();
 

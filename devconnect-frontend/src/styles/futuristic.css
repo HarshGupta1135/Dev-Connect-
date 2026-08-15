@@ -553,6 +553,47 @@ kbd, .kbd {
   color: var(--ink-faint);
 }
 
+/* ---------- 3D tilt ----------
+   --rx/--ry come from useSpotlight({ tilt }). Transform only, so the lean is
+   composited; the transition makes leaving feel like settling, not snapping.
+   The :hover rule restates the lift from card--hover, which would otherwise win
+   the cascade and cancel the tilt mid-hover. */
+
+.tilt {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 0.18s var(--ease), box-shadow 0.22s var(--ease), border-color 0.22s;
+}
+.tilt:hover {
+  transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
+}
+
+/* ---------- confetti ----------
+   Mounted for ~2.5s after an application submits, then unmounted. transform and
+   opacity only — every piece is composited, nothing repaints while it falls. */
+
+.confetti {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  overflow: hidden;
+  pointer-events: none;
+}
+.confetti i {
+  position: absolute;
+  top: -14px;
+  left: var(--x);
+  width: 8px;
+  height: 13px;
+  border-radius: 2px;
+  background: var(--c);
+  opacity: 0;
+  animation: confetti-fall var(--d) cubic-bezier(0.22, 0.7, 0.5, 1) var(--dl) forwards;
+}
+@keyframes confetti-fall {
+  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)); }
+  100% { opacity: 0.85; transform: translate3d(var(--dx), 104vh, 0) rotate(var(--r1)); }
+}
+
 /* ---------- primary buttons ----------
    Only the unmodified variant: every other variant sets its own --btn-bg, and a
    gradient painted over all of them would flatten the vocabulary back to one

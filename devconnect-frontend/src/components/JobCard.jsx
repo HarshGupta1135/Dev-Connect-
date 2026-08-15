@@ -17,13 +17,14 @@ export default function JobCard({ job, showStatus = false }) {
   const expiresIn = daysUntil(job.expiresAt);
   const closingSoon = expiresIn !== null && expiresIn >= 0 && expiresIn <= 7;
   const hasMatch = typeof job.matchPercentage === 'number';
-  const spotlight = useSpotlight();
+  const spotlight = useSpotlight({ tilt: true });
 
   return (
     <article
-      className="card card--hover job-card spot"
+      className="card card--hover job-card spot tilt"
       ref={spotlight.ref}
       onPointerMove={spotlight.onPointerMove}
+      onPointerLeave={spotlight.onPointerLeave}
     >
       <div className="job-card__head">
         <div className="row" style={{ gap: 12, minWidth: 0, alignItems: 'flex-start' }}>

@@ -20,4 +20,11 @@ public class DeveloperProfileRequest {
     private Integer yearsExp;
     private List<String> skills;
     private String linkedinUrl;
+
+    /* Contact details. Optional at profile-save time so a draft can exist, but
+       applying is refused until every one of them is filled in. */
+    private String phone;
+    private String address;
+    private String city;
+    private String pincode;
 }

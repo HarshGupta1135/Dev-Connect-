@@ -24,6 +24,10 @@ public class ApplicantSummary {
     private String email;
     private String bio;
     private String location;
+    private String phone;
+    private String address;
+    private String city;
+    private String pincode;
     private Integer yearsExp;
     private String resumeUrl;
     private String linkedinUrl;

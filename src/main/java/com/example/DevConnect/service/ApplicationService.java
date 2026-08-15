@@ -4,6 +4,7 @@ import com.example.DevConnect.dto.request.ApplicationRequest;
 import com.example.DevConnect.entity.*;
 import com.example.DevConnect.enums.ApplicationStatus;
 import com.example.DevConnect.enums.JobStatus;
+import com.example.DevConnect.exception.BadRequestException;
 import com.example.DevConnect.exception.DuplicateApplicationException;
 import com.example.DevConnect.exception.ResourceNotFoundException;
 import com.example.DevConnect.exception.UnauthorizedException;
@@ -51,6 +52,8 @@ public class ApplicationService {
         DeveloperProfile developerProfile = developerProfileRepository.findByUser(user)
                 .orElseThrow(() -> new ResourceNotFoundException("Developer Profile Not Found"));
 
+        requireCompleteProfile(developerProfile);
+
         JobPosting jobPosting = jobPostingRepository.findById(applicationRequest.getJobId())
                 .orElseThrow(() -> new ResourceNotFoundException("Job Posting Not Found"));
 
@@ -88,6 +91,37 @@ public class ApplicationService {
         // Not the address they signed in with: the one they chose to be notified on.
         emailService.sendApplicationConfirmationEmail(
                 user.resolveNotificationEmail(), developerName, jobTitle, companyName);
+    }
+
+    /**
+     * An application travels with the profile, so an application from a profile
+     * with no resume, phone or address is a package the recruiter cannot act on.
+     * Enforced here rather than at profile save, so a half-finished profile can
+     * exist — it just cannot apply yet. The error names every missing field at
+     * once rather than one per attempt.
+     *
+     * Email is deliberately absent from the checks: it is the sign-in identity and
+     * cannot be blank. The frontend performs this same check to gate its Apply
+     * button; this is the enforcement, that is the courtesy.
+     */
+    private void requireCompleteProfile(DeveloperProfile profile) {
+        List<String> missing = new ArrayList<>();
+        if (isBlank(profile.getFullName())) missing.add("full name");
+        if (isBlank(profile.getResumeUrl())) missing.add("resume");
+        if (isBlank(profile.getPhone())) missing.add("phone number");
+        if (isBlank(profile.getAddress())) missing.add("address");
+        if (isBlank(profile.getCity())) missing.add("city");
+        if (isBlank(profile.getPincode())) missing.add("pincode");
+        if (isBlank(profile.getLocation())) missing.add("location");
+
+        if (!missing.isEmpty()) {
+            throw new BadRequestException(
+                    "Complete your profile before applying. Missing: " + String.join(", ", missing));
+        }
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 
     public List<ApplicationResponse> getJobApplications(String email) {
@@ -183,6 +217,10 @@ public class ApplicationService {
                 .email(developerUser != null ? developerUser.getEmail() : null)
                 .bio(developer.getBio())
                 .location(developer.getLocation())
+                .phone(developer.getPhone())
+                .address(developer.getAddress())
+                .city(developer.getCity())
+                .pincode(developer.getPincode())
                 .yearsExp(developer.getYearsExp())
                 .resumeUrl(developer.getResumeUrl())
                 .linkedinUrl(developer.getLinkedinUrl())

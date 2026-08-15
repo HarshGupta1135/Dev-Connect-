@@ -8,6 +8,48 @@ import { JobCardSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
 import { useSpotlight } from '../hooks/useSpotlight';
 
+/**
+ * Types skill names into the search placeholder, one after another. Placeholder
+ * text only, so it can never fight actual input, and it causes no layout — the
+ * field's size is fixed. Static under reduced motion.
+ */
+function useTypedHint(words) {
+  const [hint, setHint] = useState(words[0]);
+
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
+
+    let word = 0;
+    let len = 0;
+    let deleting = false;
+    let timer;
+
+    const tick = () => {
+      const current = words[word];
+      len += deleting ? -1 : 1;
+      setHint(current.slice(0, len));
+
+      let delay = deleting ? 45 : 95;
+      if (!deleting && len === current.length) {
+        deleting = true;
+        delay = 1600; // let the full word sit before erasing it
+      } else if (deleting && len === 0) {
+        deleting = false;
+        word = (word + 1) % words.length;
+        delay = 300;
+      }
+      timer = setTimeout(tick, delay);
+    };
+
+    timer = setTimeout(tick, 900);
+    return () => clearTimeout(timer);
+  }, [words]);
+
+  return hint;
+}
+
+const TYPED_SKILLS = ['React', 'Spring Boot', 'Postgres', 'TypeScript', 'Docker', 'Kubernetes'];
+
 /** Duplicated so the strip can loop seamlessly at -50%. */
 const TICKER_SKILLS = [
   'Java', 'Spring Boot', 'React', 'TypeScript', 'Python', 'MySQL', 'Redis', 'Docker',
@@ -44,6 +86,7 @@ export default function Landing() {
   const [featured, setFeatured] = useState(null);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState('');
+  const typedHint = useTypedHint(TYPED_SKILLS);
 
   useEffect(() => {
     fetchJobs({ page: 0, size: 3, sort: 'createdAt,desc' })
@@ -86,7 +129,7 @@ export default function Landing() {
               type="search"
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by skill — React, Spring Boot, Postgres…"
+              placeholder={`Search by skill — ${typedHint}▍`}
               aria-label="Search jobs by skill"
             />
             <button type="submit" className="btn btn--sm" style={{ borderRadius: 'var(--r-pill)', padding: '8px 16px' }}>

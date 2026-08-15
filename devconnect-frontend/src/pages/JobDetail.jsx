@@ -2,13 +2,15 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
-import { applyToJob, fetchJob, fetchMyApplications } from '../api/endpoints';
+import { applyToJob, fetchJob, fetchMyApplications, fetchMyDeveloperProfile } from '../api/endpoints';
+import Confetti from '../components/Confetti';
 import MatchRing from '../components/MatchRing';
 import Modal from '../components/Modal';
 import SaveJobButton from '../components/SaveJobButton';
 import ShareButton from '../components/ShareButton';
 import StatusBadge from '../components/StatusBadge';
 import { rememberViewedJob } from '../hooks/useSavedJobs';
+import { missingProfileFields } from '../utils/profile';
 import { Skeleton } from '../components/Skeleton';
 import { ReadingProgress } from '../components/ScrollHelpers';
 import { useAuth } from '../context/AuthContext';
@@ -33,6 +35,9 @@ export default function JobDetail() {
   const [modalOpen, setModalOpen] = useState(false);
   const [coverNote, setCoverNote] = useState('');
   const [sending, setSending] = useState(false);
+  // undefined = still loading, null = no profile at all, object = the profile
+  const [myProfile, setMyProfile] = useState(undefined);
+  const [celebrate, setCelebrate] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -76,6 +81,17 @@ export default function JobDetail() {
       });
   }, [isDeveloper, job?.id]);
 
+  /*
+   * The API refuses applications from an incomplete profile, so the page finds
+   * out first and turns the refusal into a checklist instead of an error toast.
+   */
+  useEffect(() => {
+    if (!isDeveloper) return;
+    fetchMyDeveloperProfile()
+      .then(setMyProfile)
+      .catch(() => setMyProfile(null));
+  }, [isDeveloper]);
+
   const submitApplication = async () => {
     setSending(true);
     try {
@@ -84,6 +100,9 @@ export default function JobDetail() {
       setMyApplication({ jobId: job.id, status: 'APPLIED' });
       setModalOpen(false);
       setCoverNote('');
+      // The emotional peak of the whole product; unmounts itself via the timeout.
+      setCelebrate(true);
+      setTimeout(() => setCelebrate(false), 2600);
     } catch (error) {
       const message = errorMessage(error, 'Could not submit your application.');
       toast.error(message);
@@ -129,11 +148,16 @@ export default function JobDetail() {
   // Scoped to this posting: a decision on any other one, including an earlier version
   // of the same role, does not stand in the way here.
   const applied = Boolean(myApplication);
-  const canApply = isDeveloper && !isClosed && !isExpired && !applied;
+  const missing = isDeveloper && myProfile !== undefined ? missingProfileFields(myProfile) : [];
+  const profileReady = isDeveloper && myProfile !== undefined && missing.length === 0;
+  const canApply = isDeveloper && !isClosed && !isExpired && !applied && profileReady;
+  const needsProfileWork =
+    isDeveloper && !isClosed && !isExpired && !applied && myProfile !== undefined && missing.length > 0;
 
   return (
     <>
       <ReadingProgress />
+      {celebrate && <Confetti />}
       <div className="wrap section--tight page-enter" style={{ paddingTop: 30, paddingBottom: 72 }}>
         <Link to="/jobs" className="small muted" style={{ display: 'inline-block', marginBottom: 18 }}>
           ← All jobs
@@ -246,6 +270,28 @@ export default function JobDetail() {
 
             <ShareButton title={job.title} text={`${job.title} at ${job.companyName || 'a company'} on DevConnect`} />
           </div>
+
+          {/* The refusal the API would give, turned into a checklist up front. */}
+          {needsProfileWork && (
+            <div className="panel lit stack" style={{ gap: 10 }}>
+              <div className="spread">
+                <strong style={{ fontSize: '0.95rem' }}>
+                  {myProfile === null ? 'Create your profile to apply' : 'Finish your profile to apply'}
+                </strong>
+                <Link to="/developer/profile" className="btn btn--sm">
+                  {myProfile === null ? 'Create profile' : 'Complete profile'}
+                </Link>
+              </div>
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                {missing.map((field) => (
+                  <span key={field.key} className="badge badge--warn">{field.label}</span>
+                ))}
+              </div>
+              <span className="tiny muted">
+                Recruiters receive these with every application, so the API requires all of them.
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Follows the reader down a long description, so applying never means

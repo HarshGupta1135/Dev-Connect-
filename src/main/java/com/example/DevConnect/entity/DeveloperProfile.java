@@ -35,6 +35,16 @@ public class DeveloperProfile {
 
     private String resumeUrl;
 
+    /* Contact details required before an application is accepted — see
+       ApplicationService.requireCompleteProfile. Added by V2. */
+    private String phone;
+
+    private String address;
+
+    private String city;
+
+    private String pincode;
+
     private String linkedinUrl;
 
     @ManyToMany

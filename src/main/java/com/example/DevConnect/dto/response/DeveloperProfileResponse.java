@@ -20,4 +20,8 @@ public class DeveloperProfileResponse {
     private String resumeUrl;
     private String linkedinUrl;
     private List<String> skills;
+    private String phone;
+    private String address;
+    private String city;
+    private String pincode;
 }

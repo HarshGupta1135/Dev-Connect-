@@ -10,6 +10,7 @@ import {
 } from '../api/endpoints';
 import AccountSettings from '../components/AccountSettings';
 import Field from '../components/Field';
+import ProfileCompleteness from '../components/ProfileCompleteness';
 import ResumeUpload from '../components/ResumeUpload';
 import SkillPicker from '../components/SkillPicker';
 import { Skeleton } from '../components/Skeleton';
@@ -30,8 +31,14 @@ export default function DeveloperProfile() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm({ defaultValues: { fullName: '', bio: '', location: '', yearsExp: '', linkedinUrl: '' } });
+  } = useForm({
+    defaultValues: {
+      fullName: '', bio: '', location: '', yearsExp: '', linkedinUrl: '',
+      phone: '', address: '', city: '', pincode: '',
+    },
+  });
 
   useEffect(() => {
     fetchMyDeveloperProfile()
@@ -45,6 +52,10 @@ export default function DeveloperProfile() {
           location: profile.location || '',
           yearsExp: profile.yearsExp ?? '',
           linkedinUrl: profile.linkedinUrl || '',
+          phone: profile.phone || '',
+          address: profile.address || '',
+          city: profile.city || '',
+          pincode: profile.pincode || '',
         });
       })
       .catch(() => {
@@ -61,6 +72,10 @@ export default function DeveloperProfile() {
       location: values.location?.trim() || null,
       yearsExp: values.yearsExp === '' ? null : Number(values.yearsExp),
       linkedinUrl: values.linkedinUrl?.trim() || null,
+      phone: values.phone?.trim() || null,
+      address: values.address?.trim() || null,
+      city: values.city?.trim() || null,
+      pincode: values.pincode?.trim() || null,
       skills,
     };
 
@@ -103,6 +118,9 @@ export default function DeveloperProfile() {
         </p>
       </div>
 
+      {/* Live: fed the form values, so the ring moves as fields are typed. */}
+      <ProfileCompleteness values={{ ...watch(), resumeUrl }} />
+
       <form className="stack" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="card card--pad stack" style={{ gap: 18 }}>
           <Field label="Full name" htmlFor="fullName" error={errors.fullName}>
@@ -124,8 +142,14 @@ export default function DeveloperProfile() {
           </Field>
 
           <div className="grid-2">
-            <Field label="Location" htmlFor="location" optional error={errors.location}>
-              <input id="location" type="text" placeholder="Bengaluru, India" {...register('location')} />
+            <Field label="Location" htmlFor="location" error={errors.location} hint="Region or country, e.g. Karnataka, India">
+              <input
+                id="location"
+                type="text"
+                placeholder="Karnataka, India"
+                aria-invalid={Boolean(errors.location)}
+                {...register('location', { required: 'Location is required to apply' })}
+              />
             </Field>
 
             <Field label="Years of experience" htmlFor="yearsExp" optional error={errors.yearsExp}>
@@ -143,6 +167,59 @@ export default function DeveloperProfile() {
               />
             </Field>
           </div>
+
+          <Field label="Address" htmlFor="address" error={errors.address} hint="Street or locality — recruiters see this with your application.">
+            <input
+              id="address"
+              type="text"
+              autoComplete="street-address"
+              placeholder="12, MG Road"
+              aria-invalid={Boolean(errors.address)}
+              {...register('address', { required: 'Address is required to apply' })}
+            />
+          </Field>
+
+          <div className="grid-2">
+            <Field label="City" htmlFor="city" error={errors.city}>
+              <input
+                id="city"
+                type="text"
+                autoComplete="address-level2"
+                placeholder="Bengaluru"
+                aria-invalid={Boolean(errors.city)}
+                {...register('city', { required: 'City is required to apply' })}
+              />
+            </Field>
+
+            <Field label="Pincode" htmlFor="pincode" error={errors.pincode}>
+              <input
+                id="pincode"
+                type="text"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                placeholder="560001"
+                aria-invalid={Boolean(errors.pincode)}
+                {...register('pincode', {
+                  required: 'Pincode is required to apply',
+                  pattern: { value: /^[0-9]{4,8}$/, message: 'Digits only, 4–8 of them' },
+                })}
+              />
+            </Field>
+          </div>
+
+          <Field label="Phone number" htmlFor="phone" error={errors.phone}>
+            <input
+              id="phone"
+              type="tel"
+              autoComplete="tel"
+              placeholder="+91 98765 43210"
+              aria-invalid={Boolean(errors.phone)}
+              {...register('phone', {
+                required: 'Phone number is required to apply',
+                pattern: { value: /^\+?[0-9][0-9 \-]{8,14}$/, message: 'Enter a valid phone number' },
+              })}
+            />
+          </Field>
 
           <Field label="LinkedIn" htmlFor="linkedinUrl" optional error={errors.linkedinUrl}>
             <input
