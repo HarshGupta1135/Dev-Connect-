@@ -70,24 +70,24 @@ export default function Navbar() {
         <nav className="nav-links" data-open={open} aria-label="Main" onClick={() => setOpen(false)}>
           {/* Plain links with explicit current state: NavLink matches on pathname
               alone, so both of these would light up together on /jobs. */}
-          <Link to="/jobs" className="nav-link" aria-current={onJobs && !viewingSaved ? 'page' : undefined}>
+          <Link to="/jobs" className="nav-link" viewTransition aria-current={onJobs && !viewingSaved ? 'page' : undefined}>
             Browse jobs
           </Link>
           {savedCount > 0 && (
-            <Link to="/jobs?saved=1" className="nav-link" aria-current={viewingSaved ? 'page' : undefined}>
+            <Link to="/jobs?saved=1" className="nav-link" viewTransition aria-current={viewingSaved ? 'page' : undefined}>
               Saved <span className="mono tiny faint">{savedCount}</span>
             </Link>
           )}
           {isDeveloper && (
             <>
-              <NavLink to="/developer/dashboard" className="nav-link">Dashboard</NavLink>
-              <NavLink to="/developer/profile" className="nav-link">My profile</NavLink>
+              <NavLink to="/developer/dashboard" className="nav-link" viewTransition>Dashboard</NavLink>
+              <NavLink to="/developer/profile" className="nav-link" viewTransition>My profile</NavLink>
             </>
           )}
           {isRecruiter && (
             <>
-              <NavLink to="/recruiter/dashboard" className="nav-link">Dashboard</NavLink>
-              <NavLink to="/recruiter/jobs/new" className="nav-link">Post a job</NavLink>
+              <NavLink to="/recruiter/dashboard" className="nav-link" viewTransition>Dashboard</NavLink>
+              <NavLink to="/recruiter/jobs/new" className="nav-link" viewTransition>Post a job</NavLink>
             </>
           )}
 

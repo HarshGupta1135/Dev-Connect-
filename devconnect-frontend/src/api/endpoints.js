@@ -39,7 +39,33 @@ export const fetchJobs = (q = {}) => {
   return api.get('/api/jobs', { params }).then(unwrap);
 };
 
-export const fetchJob = (id) => api.get(`/api/jobs/${id}`).then(unwrap);
+/*
+ * Hover prefetch: pointing at a job card starts its detail request, so by the
+ * time the click lands the data is usually already here and the page renders
+ * instantly. Take-once — a cached promise is consumed by the next fetchJob and
+ * then dropped, so nothing ever renders from an old snapshot twice, and a failed
+ * prefetch simply falls through to a normal fetch.
+ */
+const jobPrefetch = new Map();
+
+export const prefetchJob = (id) => {
+  const key = String(id);
+  if (jobPrefetch.has(key)) return;
+  jobPrefetch.set(
+    key,
+    api.get(`/api/jobs/${id}`).then(unwrap).catch(() => null)
+  );
+};
+
+export const fetchJob = (id) => {
+  const key = String(id);
+  const primed = jobPrefetch.get(key);
+  if (primed) {
+    jobPrefetch.delete(key);
+    return primed.then((data) => data ?? api.get(`/api/jobs/${id}`).then(unwrap));
+  }
+  return api.get(`/api/jobs/${id}`).then(unwrap);
+};
 
 /* ---------------- skills ---------------- */
 

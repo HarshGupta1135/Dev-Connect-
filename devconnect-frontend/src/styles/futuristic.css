@@ -402,6 +402,27 @@ kbd, .kbd {
 .seg button:hover { color: var(--ink); }
 .seg button[aria-pressed='true'] { background: var(--surface); color: var(--accent); box-shadow: var(--shadow-sm); }
 
+/* ---------- view transitions ----------
+   Native cross-document animation for route changes, driven by the browser's
+   View Transitions API via react-router's viewTransition links. The old page
+   fades as the new one settles up into place. Browsers without the API ignore
+   all of this and navigate exactly as before — zero JS shipped for it. */
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) {
+    animation: vt-out 110ms ease-out both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-in 240ms var(--ease) both;
+  }
+}
+@keyframes vt-out {
+  to { opacity: 0; }
+}
+@keyframes vt-in {
+  from { opacity: 0; transform: translateY(10px); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aurora__field, .ticker__track { animation: none !important; }
 }

@@ -1,3 +1,4 @@
+import { Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
@@ -7,18 +8,39 @@ import Ambient from './components/Ambient';
 import CommandPalette from './components/CommandPalette';
 import RouteProgress from './components/RouteProgress';
 import { BackToTopButton, ScrollToTopOnNavigate } from './components/ScrollHelpers';
+import { Skeleton } from './components/Skeleton';
 import { useTheme } from './context/ThemeContext';
 import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Jobs from './pages/Jobs';
-import JobDetail from './pages/JobDetail';
-import DeveloperDashboard from './pages/DeveloperDashboard';
-import DeveloperProfile from './pages/DeveloperProfile';
-import RecruiterDashboard from './pages/RecruiterDashboard';
-import RecruiterJobNew from './pages/RecruiterJobNew';
-import RecruiterApplicants from './pages/RecruiterApplicants';
-import NotFound from './pages/NotFound';
+
+/*
+ * Every page except the landing loads on demand. The landing stays in the main
+ * chunk because it IS the first paint; the rest ship as their own files, so a
+ * first-time visitor downloads the shell and one page instead of ten. Chunks are
+ * content-hashed and cached, so a route is fetched at most once per deploy.
+ */
+const Login = lazy(() => import('./pages/Login'));
+const Register = lazy(() => import('./pages/Register'));
+const Jobs = lazy(() => import('./pages/Jobs'));
+const JobDetail = lazy(() => import('./pages/JobDetail'));
+const DeveloperDashboard = lazy(() => import('./pages/DeveloperDashboard'));
+const DeveloperProfile = lazy(() => import('./pages/DeveloperProfile'));
+const RecruiterDashboard = lazy(() => import('./pages/RecruiterDashboard'));
+const RecruiterJobNew = lazy(() => import('./pages/RecruiterJobNew'));
+const RecruiterApplicants = lazy(() => import('./pages/RecruiterApplicants'));
+const NotFound = lazy(() => import('./pages/NotFound'));
+
+/** Shown for the instant a route chunk is in flight — skeleton, not spinner. */
+function PageFallback() {
+  return (
+    <div className="wrap section--tight" style={{ paddingTop: 34 }} aria-busy="true">
+      <div className="stack" style={{ gap: 14 }}>
+        <Skeleton width="30%" height={12} />
+        <Skeleton width="55%" height={32} />
+        <Skeleton height={220} radius={16} style={{ marginTop: 14 }} />
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const { resolved } = useTheme();
@@ -34,6 +56,7 @@ export default function App() {
       <Navbar />
 
       <main className="page">
+        <Suspense fallback={<PageFallback />}>
         <Routes>
           {/* public */}
           <Route path="/" element={<Landing />} />
@@ -88,6 +111,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </Suspense>
       </main>
 
       <Footer />

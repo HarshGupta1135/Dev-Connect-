@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { prefetchJob } from '../api/endpoints';
 import CompanyAvatar from './CompanyAvatar';
 import MatchRing from './MatchRing';
 import SaveJobButton from './SaveJobButton';
@@ -25,12 +26,16 @@ export default function JobCard({ job, showStatus = false }) {
       ref={spotlight.ref}
       onPointerMove={spotlight.onPointerMove}
       onPointerLeave={spotlight.onPointerLeave}
+      /* Hovering starts the detail request, so the click usually finds the data
+         already loaded. onFocus covers keyboard navigation the same way. */
+      onPointerEnter={() => prefetchJob(job.id)}
+      onFocus={() => prefetchJob(job.id)}
     >
       <div className="job-card__head">
         <div className="row" style={{ gap: 12, minWidth: 0, alignItems: 'flex-start' }}>
           <CompanyAvatar name={job.companyName} />
           <div className="stack" style={{ gap: 3, minWidth: 0 }}>
-            <Link to={`/jobs/${job.id}`} className="job-card__title">
+            <Link to={`/jobs/${job.id}`} className="job-card__title" viewTransition>
               {job.title}
             </Link>
             <span className="job-card__company">{job.companyName || 'Company undisclosed'}</span>
@@ -73,7 +78,7 @@ export default function JobCard({ job, showStatus = false }) {
         <span className="tiny faint mono">
           {job.createdAt ? `Posted ${relativeTime(job.createdAt)}` : ''}
         </span>
-        <Link to={`/jobs/${job.id}`} className="btn btn--soft btn--sm job-card__go">
+        <Link to={`/jobs/${job.id}`} className="btn btn--soft btn--sm job-card__go" viewTransition>
           View details
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <path d="M5 12h14M13 6l6 6-6 6" />
