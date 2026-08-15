@@ -524,7 +524,9 @@ select {
 .ring svg { transform: rotate(-90deg); }
 .ring circle { fill: none; stroke-linecap: round; }
 .ring .track { stroke: var(--surface-3); }
-.ring .value { stroke: var(--accent); transition: stroke-dashoffset 0.9s var(--ease); }
+/* No stroke colour here: the component paints it with an SVG gradient def, and a
+   CSS `stroke` declaration would win over that presentation attribute. */
+.ring .value { transition: stroke-dashoffset 0.9s var(--ease); }
 .ring__label {
   position: absolute; inset: 0; display: grid; place-items: center;
   font-family: var(--mono); font-size: 0.72rem; font-weight: 600; color: var(--accent);

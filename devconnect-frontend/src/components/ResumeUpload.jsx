@@ -38,6 +38,7 @@ export default function ResumeUpload({ resumeUrl, onUploaded }) {
       <div
         className="dropzone"
         data-drag={dragging}
+        data-busy={progress !== null}
         role="button"
         tabIndex={0}
         onClick={() => inputRef.current?.click()}

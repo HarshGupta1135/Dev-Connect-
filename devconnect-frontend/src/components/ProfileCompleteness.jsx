@@ -14,7 +14,7 @@ export default function ProfileCompleteness({ values }) {
   const ready = missing.length === 0;
 
   return (
-    <div className="card card--pad lit spread" style={{ gap: 18, marginBottom: 20, alignItems: 'center' }}>
+    <div className="card card--pad lit spread" style={{ gap: 18, alignItems: 'center' }}>
       <div className="stack" style={{ gap: 8, minWidth: 0 }}>
         <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
           <strong>{ready ? 'Apply-ready' : 'Almost apply-ready'}</strong>

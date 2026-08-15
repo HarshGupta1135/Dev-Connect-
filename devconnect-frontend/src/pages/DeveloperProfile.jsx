@@ -105,7 +105,7 @@ export default function DeveloperProfile() {
   }
 
   return (
-    <div className="wrap wrap--narrow section--tight page-enter" style={{ paddingTop: 32, paddingBottom: 72 }}>
+    <div className="wrap section--tight page-enter" style={{ paddingTop: 32, paddingBottom: 72, maxWidth: 1060 }}>
       <div className="stack" style={{ gap: 8, marginBottom: 26 }}>
         <span className="eyebrow">{existing ? 'Developer profile' : 'Set up your profile'}</span>
         <h1 style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.5rem)' }}>
@@ -118,9 +118,9 @@ export default function DeveloperProfile() {
         </p>
       </div>
 
-      {/* Live: fed the form values, so the ring moves as fields are typed. */}
-      <ProfileCompleteness values={{ ...watch(), resumeUrl }} />
-
+      {/* Form on the left; readiness and resume stay pinned on the right, so the
+          two things the apply gate cares about are visible from any scroll depth. */}
+      <div className="profile-layout">
       <form className="stack" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
         <div className="card card--pad stack" style={{ gap: 18 }}>
           <Field label="Full name" htmlFor="fullName" error={errors.fullName}>
@@ -240,7 +240,26 @@ export default function DeveloperProfile() {
           </div>
         </div>
 
-        <div className="card card--pad stack" style={{ gap: 14 }}>
+        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
+          <button type="submit" className="btn btn--lg" disabled={isSubmitting}>
+            {isSubmitting && <span className="spinner" />}
+            {isSubmitting ? 'Saving…' : existing ? 'Save changes' : 'Create profile'}
+          </button>
+          {existing && (
+            <Link to="/developer/dashboard" className="btn btn--lg btn--outline">
+              Back to dashboard
+            </Link>
+          )}
+        </div>
+      </form>
+
+      <aside className="profile-rail">
+        {/* Live: fed the form values, so the ring moves as fields are typed. */}
+        <ProfileCompleteness values={{ ...watch(), resumeUrl }} />
+
+        {/* Outside the form on purpose: the upload is its own request, and a file
+            input inside the profile form suggests it saves with the Save button. */}
+        <div className="card card--pad stack lit" style={{ gap: 14 }}>
           <div className="stack" style={{ gap: 3 }}>
             <h3>Resume</h3>
             <p className="small muted">
@@ -255,19 +274,8 @@ export default function DeveloperProfile() {
             <div className="panel small muted">Available once your profile exists.</div>
           )}
         </div>
-
-        <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
-          <button type="submit" className="btn btn--lg" disabled={isSubmitting}>
-            {isSubmitting && <span className="spinner" />}
-            {isSubmitting ? 'Saving…' : existing ? 'Save changes' : 'Create profile'}
-          </button>
-          {existing && (
-            <Link to="/developer/dashboard" className="btn btn--lg btn--outline">
-              Back to dashboard
-            </Link>
-          )}
-        </div>
-      </form>
+      </aside>
+      </div>
 
       {/*
         Its own <form>, kept outside the profile one: it posts to a different endpoint

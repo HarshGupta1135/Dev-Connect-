@@ -553,6 +553,66 @@ kbd, .kbd {
   color: var(--ink-faint);
 }
 
+/* ---------- depth: accent glow on interactive cards ----------
+   The lift shadow was neutral slate; tinting it with the accent is what makes a
+   raised card read as lit by the brand rather than merely elevated. Transitioned
+   on hover, not animated continuously. */
+
+.card--hover:hover {
+  box-shadow:
+    var(--shadow-lg),
+    0 10px 40px -10px color-mix(in srgb, var(--accent) 28%, transparent);
+}
+
+/* ---------- live status dots ----------
+   The dot on "live" states breathes; terminal states (closed, rejected) stay
+   still, which is the point — motion marks the ones still in play. Transform and
+   opacity only, and the global reduced-motion rule freezes it. */
+
+.badge--active::before,
+.badge--applied::before,
+.badge--shortlisted::before {
+  animation: dot-pulse 2.4s ease-in-out infinite;
+}
+@keyframes dot-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.8); }
+}
+
+/* ---------- profile page: form + sticky rail ----------
+   Asymmetric on purpose: the long form reads on the left while readiness and the
+   resume — the two things the apply gate cares about — stay pinned in view on
+   the right, so progress is always visible from any scroll depth. */
+
+.profile-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  align-items: start;
+}
+.profile-rail {
+  position: sticky;
+  top: calc(var(--nav-h) + 20px);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+@media (max-width: 940px) {
+  .profile-layout { grid-template-columns: 1fr; }
+  .profile-rail { position: static; }
+}
+
+/* ---------- dropzone while uploading ---------- */
+
+.dropzone[data-busy='true'] {
+  border-color: var(--accent);
+  animation: dz-breathe 1.4s ease-in-out infinite;
+}
+@keyframes dz-breathe {
+  0%, 100% { background: var(--surface-2); }
+  50% { background: var(--accent-soft); }
+}
+
 /* ---------- 3D tilt ----------
    --rx/--ry come from useSpotlight({ tilt }). Transform only, so the lean is
    composited; the transition makes leaving feel like settling, not snapping.
