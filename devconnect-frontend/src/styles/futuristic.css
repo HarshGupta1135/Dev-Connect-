@@ -192,7 +192,6 @@ kbd, .kbd {
   padding: clamp(56px, 12vh, 140px) 18px 18px;
   background: color-mix(in srgb, #05070c 60%, transparent);
   backdrop-filter: blur(6px);
-  animation: fade-in 0.15s ease-out;
 }
 
 .cmdk {
@@ -207,7 +206,6 @@ kbd, .kbd {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg), var(--glow-accent);
   overflow: hidden;
-  animation: pop-in 0.2s var(--ease);
 }
 
 .cmdk__input {
@@ -646,33 +644,6 @@ kbd, .kbd {
 }
 .tilt:hover {
   transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(-3px);
-}
-
-/* ---------- confetti ----------
-   Mounted for ~2.5s after an application submits, then unmounted. transform and
-   opacity only — every piece is composited, nothing repaints while it falls. */
-
-.confetti {
-  position: fixed;
-  inset: 0;
-  z-index: 400;
-  overflow: hidden;
-  pointer-events: none;
-}
-.confetti i {
-  position: absolute;
-  top: -14px;
-  left: var(--x);
-  width: 8px;
-  height: 13px;
-  border-radius: 2px;
-  background: var(--c);
-  opacity: 0;
-  animation: confetti-fall var(--d) cubic-bezier(0.22, 0.7, 0.5, 1) var(--dl) forwards;
-}
-@keyframes confetti-fall {
-  0% { opacity: 1; transform: translate3d(0, 0, 0) rotate(var(--r0)); }
-  100% { opacity: 0.85; transform: translate3d(var(--dx), 104vh, 0) rotate(var(--r1)); }
 }
 
 /* ---------- primary buttons ----------

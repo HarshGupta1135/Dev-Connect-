@@ -634,7 +634,8 @@ select {
   padding: 20px;
   background: #0b0e14a8;
   backdrop-filter: blur(4px);
-  animation: fade-in 0.18s ease-out;
+  /* No CSS entrance here any more: Modal animates itself with springs, and a CSS
+     animation on top would double-fire against it. */
 }
 .modal {
   width: min(560px, 100%);
@@ -644,7 +645,6 @@ select {
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-lg);
   padding: clamp(20px, 3vw, 28px);
-  animation: pop-in 0.24s var(--ease);
 }
 
 /* ---------- skeletons & spinners ---------- */

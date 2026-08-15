@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { m } from 'motion/react';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import { JOB_TYPES, fetchJobs } from '../api/endpoints';
 import JobCard from '../components/JobCard';
 import EmptyState from '../components/EmptyState';
 import Pagination from '../components/Pagination';
-import Reveal from '../components/Reveal';
 import SkillPicker from '../components/SkillPicker';
 import { JobCardSkeleton } from '../components/Skeleton';
 import { useAuth } from '../context/AuthContext';
@@ -14,6 +14,17 @@ import { useSavedJobs } from '../hooks/useSavedJobs';
 import { titleCase } from '../utils/format';
 
 const PAGE_SIZE = 9;
+
+/* Spring stagger for the result grid: each search's results pour in rather than
+   pop. The container re-keys on the query, so every new result set replays it. */
+const gridStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.05, delayChildren: 0.02 } },
+};
+const cardSpring = {
+  hidden: { opacity: 0, y: 20, scale: 0.98 },
+  show: { opacity: 1, y: 0, scale: 1, transition: { type: 'spring', stiffness: 260, damping: 24 } },
+};
 
 const SORTS = [
   { value: 'createdAt,desc', label: 'Newest first' },
@@ -250,13 +261,19 @@ export default function Jobs() {
               }
             />
           ) : (
-            <div className="job-grid">
-              {jobs.map((job, index) => (
-                <Reveal key={job.id} delay={Math.min(index * 45, 240)}>
+            <m.div
+              className="job-grid"
+              variants={gridStagger}
+              initial="hidden"
+              animate="show"
+              key={`${page}|${sort}|${skills.join(',')}|${urlLocation}|${type}|${savedOnly}`}
+            >
+              {jobs.map((job) => (
+                <m.div key={job.id} variants={cardSpring}>
                   <JobCard job={job} />
-                </Reveal>
+                </m.div>
               ))}
-            </div>
+            </m.div>
           )}
 
           {/* Hidden while filtering saved roles: that view fetches one large page

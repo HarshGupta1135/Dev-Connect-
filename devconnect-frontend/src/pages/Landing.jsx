@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { m } from 'motion/react';
 import { fetchJobs } from '../api/endpoints';
 import JobCard from '../components/JobCard';
 import MatchExplainer from '../components/MatchExplainer';
@@ -49,6 +50,17 @@ function useTypedHint(words) {
 }
 
 const TYPED_SKILLS = ['React', 'Spring Boot', 'Postgres', 'TypeScript', 'Docker', 'Kubernetes'];
+
+/* The hero builds itself: badge, headline, pitch, search, actions — each springing
+   up a beat after the last. First impressions are made in this second. */
+const heroStagger = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+};
+const heroItem = {
+  hidden: { opacity: 0, y: 22 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 220, damping: 26 } },
+};
 
 /** Duplicated so the strip can loop seamlessly at -50%. */
 const TICKER_SKILLS = [
@@ -107,20 +119,20 @@ export default function Landing() {
     <div className="page-enter">
       <section className="hero">
         <div className="hero__grid" aria-hidden="true" />
-        <div className="wrap hero__inner">
-          <span className="chip chip--accent" style={{ gap: 8 }}>
+        <m.div className="wrap hero__inner" variants={heroStagger} initial="hidden" animate="show">
+          <m.span className="chip chip--accent" style={{ gap: 8 }} variants={heroItem}>
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor', boxShadow: '0 0 8px currentColor' }} />
             Skill-matched hiring
-          </span>
-          <h1 style={{ maxWidth: '19ch' }}>
+          </m.span>
+          <m.h1 style={{ maxWidth: '19ch' }} variants={heroItem}>
             Get found for what you <em className="grad-text">actually</em> build.
-          </h1>
-          <p className="lede">
+          </m.h1>
+          <m.p className="lede" variants={heroItem}>
             DevConnect scores every opening against the skills on your profile, so the roles you
             can genuinely do rise to the top — no keyword roulette.
-          </p>
+          </m.p>
 
-          <form className="searchbar" onSubmit={search} role="search">
+          <m.form className="searchbar" onSubmit={search} role="search" variants={heroItem}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--ink-faint)', flex: 'none' }}>
               <circle cx="11" cy="11" r="7" />
               <path d="M20 20l-3.5-3.5" />
@@ -135,9 +147,9 @@ export default function Landing() {
             <button type="submit" className="btn btn--sm" style={{ borderRadius: 'var(--r-pill)', padding: '8px 16px' }}>
               Search
             </button>
-          </form>
+          </m.form>
 
-          <div className="hero__cta">
+          <m.div className="hero__cta" variants={heroItem}>
             {isAuthenticated ? (
               <Link to={homeFor} className="btn btn--lg btn--glow">Go to my dashboard</Link>
             ) : (
@@ -146,12 +158,12 @@ export default function Landing() {
                 <Link to="/jobs" className="btn btn--lg btn--outline">Browse {total > 0 ? `${total} ` : ''}open roles</Link>
               </>
             )}
-          </div>
+          </m.div>
 
-          <p className="tiny faint" style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }}>
+          <m.p className="tiny faint" style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap' }} variants={heroItem}>
             Press <kbd>Ctrl</kbd><kbd>K</kbd> anywhere to search roles, jump between pages or switch theme.
-          </p>
-        </div>
+          </m.p>
+        </m.div>
       </section>
 
       {/* The skills the platform actually scores against — concrete, and it fills

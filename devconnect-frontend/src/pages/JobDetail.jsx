@@ -3,7 +3,6 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import { applyToJob, fetchJob, fetchMyApplications, fetchMyDeveloperProfile } from '../api/endpoints';
-import Confetti from '../components/Confetti';
 import MatchRing from '../components/MatchRing';
 import Modal from '../components/Modal';
 import SaveJobButton from '../components/SaveJobButton';
@@ -37,7 +36,6 @@ export default function JobDetail() {
   const [sending, setSending] = useState(false);
   // undefined = still loading, null = no profile at all, object = the profile
   const [myProfile, setMyProfile] = useState(undefined);
-  const [celebrate, setCelebrate] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +90,25 @@ export default function JobDetail() {
       .catch(() => setMyProfile(null));
   }, [isDeveloper]);
 
+  /*
+   * Real particle physics for the one moment worth it. canvas-confetti draws to a
+   * single canvas (cheaper than a screen of DOM nodes), loads on demand so its
+   * bytes are only ever paid by someone who actually applies, and its own
+   * disableForReducedMotion honours the preference. Decoration: if the import
+   * fails, the application still succeeded and nothing else notices.
+   */
+  const fireConfetti = async () => {
+    try {
+      const { default: confetti } = await import('canvas-confetti');
+      const base = { disableForReducedMotion: true, zIndex: 500 };
+      confetti({ ...base, particleCount: 90, spread: 75, origin: { y: 0.7 } });
+      setTimeout(() => confetti({ ...base, particleCount: 50, angle: 60, spread: 60, origin: { x: 0, y: 0.9 } }), 140);
+      setTimeout(() => confetti({ ...base, particleCount: 50, angle: 120, spread: 60, origin: { x: 1, y: 0.9 } }), 280);
+    } catch {
+      /* nothing to do — the celebration is optional, the application is not */
+    }
+  };
+
   const submitApplication = async () => {
     setSending(true);
     try {
@@ -100,9 +117,7 @@ export default function JobDetail() {
       setMyApplication({ jobId: job.id, status: 'APPLIED' });
       setModalOpen(false);
       setCoverNote('');
-      // The emotional peak of the whole product; unmounts itself via the timeout.
-      setCelebrate(true);
-      setTimeout(() => setCelebrate(false), 2600);
+      fireConfetti();
     } catch (error) {
       const message = errorMessage(error, 'Could not submit your application.');
       toast.error(message);
@@ -157,7 +172,6 @@ export default function JobDetail() {
   return (
     <>
       <ReadingProgress />
-      {celebrate && <Confetti />}
       <div className="wrap section--tight page-enter" style={{ paddingTop: 30, paddingBottom: 72 }}>
         <Link to="/jobs" className="small muted" style={{ display: 'inline-block', marginBottom: 18 }}>
           ← All jobs

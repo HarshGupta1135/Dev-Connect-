@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, m } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -235,18 +236,32 @@ export default function CommandPalette() {
     listRef.current?.querySelector('[data-active="true"]')?.scrollIntoView({ block: 'nearest' });
   }, [cursor]);
 
-  if (!open) return null;
-
   let lastGroup = null;
 
   return (
-    <div
+    <AnimatePresence>
+    {open && (
+    <m.div
       className="cmdk-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.14 }}
       onMouseDown={(event) => event.target === event.currentTarget && close()}
     >
       {/* Handled on the panel, not the input: clicking a row moves focus off the
           field, and Escape has to keep working after that. */}
-      <div className="cmdk" role="dialog" aria-modal="true" aria-label="Command palette" onKeyDown={onKeyDown}>
+      <m.div
+        className="cmdk"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
+        onKeyDown={onKeyDown}
+        initial={{ opacity: 0, y: -14, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -8, scale: 0.98 }}
+        transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+      >
         <div className="cmdk__input">
           <span style={{ color: 'var(--ink-faint)', display: 'grid' }}>
             <Icon d={ICONS.search} />
@@ -297,7 +312,9 @@ export default function CommandPalette() {
           <span><kbd>↵</kbd> open</span>
           <span style={{ marginLeft: 'auto' }}><kbd>/</kbd> anywhere</span>
         </div>
-      </div>
-    </div>
+      </m.div>
+    </m.div>
+    )}
+    </AnimatePresence>
   );
 }

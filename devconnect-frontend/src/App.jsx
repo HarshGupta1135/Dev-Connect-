@@ -1,5 +1,6 @@
 import { Suspense, lazy } from 'react';
 import { Route, Routes } from 'react-router-dom';
+import { LazyMotion, MotionConfig } from 'motion/react';
 import { Toaster } from 'react-hot-toast';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
@@ -11,6 +12,14 @@ import { BackToTopButton, ScrollToTopOnNavigate } from './components/ScrollHelpe
 import { Skeleton } from './components/Skeleton';
 import { useTheme } from './context/ThemeContext';
 import Landing from './pages/Landing';
+
+/*
+ * Motion's animation engine loads as its own async chunk — via the intermediate
+ * module, never by importing 'motion/react' dynamically here (see that file for
+ * why that welds the engine into the main bundle). `strict` guarantees nothing
+ * can pull the full-fat motion.* components in by accident.
+ */
+const loadMotionFeatures = () => import('./lib/motion-features').then((mod) => mod.default);
 
 /*
  * Every page except the landing loads on demand. The landing stays in the main
@@ -46,7 +55,10 @@ export default function App() {
   const { resolved } = useTheme();
 
   return (
-    <>
+    <LazyMotion features={loadMotionFeatures} strict>
+    {/* reducedMotion="user" turns every spring into an instant state change for
+        visitors who asked for less motion — one switch instead of per-component checks. */}
+    <MotionConfig reducedMotion="user">
       {/* Outside .shell so the drifting colour field sits behind everything. */}
       <Ambient />
 
@@ -138,6 +150,7 @@ export default function App() {
         }}
       />
       </div>
-    </>
+    </MotionConfig>
+    </LazyMotion>
   );
 }
