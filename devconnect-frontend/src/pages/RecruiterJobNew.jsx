@@ -70,14 +70,14 @@ export default function RecruiterJobNew() {
     <div className="wrap wrap--narrow section--tight page-enter" style={{ paddingTop: 32, paddingBottom: 72 }}>
       <div className="stack" style={{ gap: 8, marginBottom: 26 }}>
         <span className="eyebrow">New posting</span>
-        <h1 style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.5rem)' }}>Post a role</h1>
+        <h1 style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.5rem)' }}>Post a <span className="grad-text">role</span></h1>
         <p className="lede">
           The skills you list here are what candidates are scored against, so be specific about
           what the work actually needs.
         </p>
       </div>
 
-      <form className="card card--pad stack" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
+      <form className="card card--pad stack lit" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
         <Field label="Job title" htmlFor="title" error={errors.title}>
           <input
             id="title"

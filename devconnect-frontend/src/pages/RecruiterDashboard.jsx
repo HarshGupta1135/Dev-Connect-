@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { m } from 'motion/react';
 import { useForm } from 'react-hook-form';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
@@ -12,6 +13,7 @@ import {
   updateRecruiterProfile,
 } from '../api/endpoints';
 import AccountSettings from '../components/AccountSettings';
+import CompanyAvatar from '../components/CompanyAvatar';
 import EmptyState from '../components/EmptyState';
 import Field from '../components/Field';
 import StatusBadge from '../components/StatusBadge';
@@ -30,6 +32,13 @@ const TABS = [
   { id: 'jobs', label: 'My jobs' },
   { id: 'company', label: 'Company profile' },
 ];
+
+/* Rows pour in with the same springs as every other list in the product. */
+const listStagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const rowSpring = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 26 } },
+};
 
 function CompanyForm({ profile, onSaved }) {
   const {
@@ -165,14 +174,17 @@ export default function RecruiterDashboard() {
     <div className="wrap section--tight page-enter" style={{ paddingTop: 32, paddingBottom: 72 }}>
       <div className="dash-head">
         <span className="eyebrow">Recruiter</span>
-        <h1 style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.4rem)' }}>
-          {profile?.companyName || 'Your dashboard'}
-        </h1>
+        <div className="row" style={{ gap: 12, flexWrap: 'wrap' }}>
+          {profile?.companyName && <CompanyAvatar name={profile.companyName} size={44} />}
+          <h1 style={{ fontSize: 'clamp(1.8rem, 3.6vw, 2.4rem)' }}>
+            {profile?.companyName || <>Your <span className="grad-text">dashboard</span></>}
+          </h1>
+        </div>
         <p className="muted small">{profile?.fullName ? `${profile.fullName} · ${user?.email}` : user?.email}</p>
       </div>
 
       {profileMissing && (
-        <div className="card card--pad spread" style={{ marginBottom: 22, borderColor: 'var(--accent)' }}>
+        <div className="card card--pad spread lit" style={{ marginBottom: 22 }}>
           <div className="stack" style={{ gap: 3 }}>
             <strong>Create your company profile first</strong>
             <span className="small muted">Job postings are attached to it, so posting is blocked until it exists.</span>
@@ -221,12 +233,12 @@ export default function RecruiterDashboard() {
       </div>
 
       {tab === 'jobs' && (
-        <section role="tabpanel" aria-label="My jobs" className="list">
+        <m.section role="tabpanel" aria-label="My jobs" className="list" variants={listStagger} initial="hidden" animate="show">
           {loading ? (
             Array.from({ length: 3 }, (_, index) => <RowSkeleton key={index} />)
           ) : jobs?.length ? (
             jobs.map((job) => (
-              <article key={job.id} className="card list-row">
+              <m.article key={job.id} className="card list-row" variants={rowSpring}>
                 <div className="list-row__main">
                   <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
                     <Link to={`/jobs/${job.id}`} style={{ fontWeight: 650, fontSize: '1rem' }}>
@@ -264,7 +276,7 @@ export default function RecruiterDashboard() {
                     </button>
                   )}
                 </div>
-              </article>
+              </m.article>
             ))
           ) : (
             <EmptyState
@@ -282,7 +294,7 @@ export default function RecruiterDashboard() {
               }
             />
           )}
-        </section>
+        </m.section>
       )}
 
       {tab === 'company' && (

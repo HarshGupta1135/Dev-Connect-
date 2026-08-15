@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { m } from 'motion/react';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import { fetchJob, fetchJobApplicants, setApplicationStatus } from '../api/endpoints';
+import CompanyAvatar from '../components/CompanyAvatar';
 import EmptyState from '../components/EmptyState';
 import Modal from '../components/Modal';
 import StatusBadge from '../components/StatusBadge';
 import { RowSkeleton, Skeleton } from '../components/Skeleton';
 import { formatDate, relativeTime } from '../utils/format';
+
+/* Same motion language as the developer-side lists: rows pour in, and the
+   stagger replays when the filter changes. */
+const listStagger = { hidden: {}, show: { transition: { staggerChildren: 0.05 } } };
+const rowSpring = {
+  hidden: { opacity: 0, y: 16 },
+  show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 280, damping: 26 } },
+};
 
 const FILTERS = [
   { id: 'ALL', label: 'All' },
@@ -30,6 +40,11 @@ function experienceText(years) {
   if (years === null || years === undefined) return null;
   if (years === 0) return 'Fresher';
   return `${years} yr${years === 1 ? '' : 's'} experience`;
+}
+
+/** Street, city and pincode as one line, skipping whatever is absent. */
+function fullAddress(applicant) {
+  return [applicant?.address, applicant?.city, applicant?.pincode].filter(Boolean).join(', ');
 }
 
 /** Everything the applications API knows about the candidate, in a dialog. */
@@ -57,6 +72,14 @@ function CandidateDialog({ application, onClose }) {
             <dd>
               {applicant.email ? <a href={`mailto:${applicant.email}`}>{applicant.email}</a> : '—'}
             </dd>
+
+            <dt>Phone</dt>
+            <dd>
+              {applicant.phone ? <a href={`tel:${applicant.phone}`}>{applicant.phone}</a> : '—'}
+            </dd>
+
+            <dt>Address</dt>
+            <dd>{fullAddress(applicant) || '—'}</dd>
 
             <dt>Username</dt>
             <dd>{applicant.userName || '—'}</dd>
@@ -240,7 +263,14 @@ export default function RecruiterApplicants() {
         ))}
       </div>
 
-      <section className="list" role="tabpanel">
+      <m.section
+        className="list"
+        role="tabpanel"
+        variants={listStagger}
+        initial="hidden"
+        animate="show"
+        key={filter}
+      >
         {loading ? (
           Array.from({ length: 3 }, (_, index) => <RowSkeleton key={index} />)
         ) : visible.length === 0 ? (
@@ -257,13 +287,21 @@ export default function RecruiterApplicants() {
           visible.map((application) => {
             const applicant = application.applicant;
             const meta = [
-              applicant?.location,
+              applicant?.city || applicant?.location,
               experienceText(applicant?.yearsExp),
+              applicant?.phone,
               applicant?.email,
             ].filter(Boolean);
 
             return (
-              <article key={application.id} className="card list-row" style={{ alignItems: 'flex-start' }}>
+              <m.article
+                key={application.id}
+                className="card list-row"
+                style={{ alignItems: 'flex-start' }}
+                variants={rowSpring}
+              >
+                <div className="row" style={{ gap: 12, alignItems: 'flex-start', minWidth: 0, flex: 1 }}>
+                <CompanyAvatar name={candidateName(application)} size={38} />
                 <div className="list-row__main">
                   <div className="row" style={{ gap: 10, flexWrap: 'wrap' }}>
                     <strong style={{ fontSize: '1rem' }}>{candidateName(application)}</strong>
@@ -300,6 +338,7 @@ export default function RecruiterApplicants() {
                   ) : (
                     <span className="tiny faint" style={{ marginTop: 4 }}>No cover note</span>
                   )}
+                </div>
                 </div>
 
                 <div className="row" style={{ gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
@@ -354,11 +393,11 @@ export default function RecruiterApplicants() {
                     </button>
                   )}
                 </div>
-              </article>
+              </m.article>
             );
           })
         )}
-      </section>
+      </m.section>
 
       <CandidateDialog application={openApplication} onClose={() => setOpenId(null)} />
     </div>
