@@ -2,6 +2,7 @@ import { useForm } from 'react-hook-form';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
+import AuthAside from '../components/AuthAside';
 import Field from '../components/Field';
 import PasswordInput from '../components/PasswordInput';
 import { useAuth } from '../context/AuthContext';
@@ -37,13 +38,14 @@ export default function Login() {
   };
 
   return (
-    <div className="wrap wrap--narrow section page-enter">
+    <div className="wrap section page-enter" style={{ maxWidth: 980 }}>
       <div className="stack" style={{ gap: 8, marginBottom: 28 }}>
         <span className="eyebrow">Sign in</span>
-        <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.7rem)' }}>Welcome back</h1>
+        <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.7rem)' }}>Welcome <span className="grad-text">back</span></h1>
         <p className="lede">Pick up where you left off.</p>
       </div>
 
+      <div className="auth-grid">
       <form className="card card--pad stack" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
         <Field label="Email" htmlFor="email" error={errors.email}>
           <input
@@ -76,6 +78,16 @@ export default function Login() {
           New here? <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>Create an account</Link>
         </p>
       </form>
+
+      <AuthAside
+        title="Matched on skills, not keywords"
+        points={[
+          'Every role is scored against your profile with a visible match percentage.',
+          'Apply in one click — your profile and resume travel with it.',
+          'Shortlisted or not, you hear back by email either way.',
+        ]}
+      />
+      </div>
     </div>
   );
 }

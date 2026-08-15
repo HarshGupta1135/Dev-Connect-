@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import { registerUser } from '../api/endpoints';
+import AuthAside from '../components/AuthAside';
 import Field from '../components/Field';
 import PasswordInput from '../components/PasswordInput';
 
@@ -28,15 +29,16 @@ export default function Register() {
   };
 
   return (
-    <div className="wrap wrap--narrow section page-enter">
+    <div className="wrap section page-enter" style={{ maxWidth: 980 }}>
       <div className="stack" style={{ gap: 8, marginBottom: 28 }}>
         <span className="eyebrow">Create account</span>
         <h1 style={{ fontSize: 'clamp(2rem, 4vw, 2.7rem)' }}>
-          Join as a <em className="italic-serif">developer</em> or a recruiter
+          Join as a <em className="grad-text" style={{ fontStyle: 'normal' }}>developer</em> or a recruiter
         </h1>
         <p className="lede">One account, two very different jobs to do. Pick the side you are on.</p>
       </div>
 
+      <div className="auth-grid">
       <form className="card card--pad stack" style={{ gap: 18 }} onSubmit={handleSubmit(onSubmit)} noValidate>
         <Field label="Username" htmlFor="username" error={errors.username}>
           <input
@@ -118,6 +120,16 @@ export default function Register() {
           Already registered? <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign in</Link>
         </p>
       </form>
+
+      <AuthAside
+        title="Two minutes to a scored profile"
+        points={[
+          'Developers: list real skills once, then watch every role rank itself against them.',
+          'Recruiters: post requirements, and candidates self-select against a visible score.',
+          'A welcome email confirms your account the moment it exists.',
+        ]}
+      />
+      </div>
     </div>
   );
 }

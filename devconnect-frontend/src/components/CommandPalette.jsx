@@ -182,7 +182,9 @@ export default function CommandPalette() {
       { group: 'Appearance', icon: ICONS.monitor, label: 'Match system theme', sub: theme === 'system' ? 'current' : undefined, keywords: 'auto os', run: () => { setTheme('system'); close(); } }
     );
 
-    list.push({ group: 'Help', icon: ICONS.book, label: 'API documentation', keywords: 'swagger openapi', run: () => { close(); window.open('/swagger-ui/index.html', '_blank', 'noopener'); } });
+    // Absolute against the API origin: relative would stay on this app's domain,
+    // where the SPA rewrite serves index.html for every path — a 404 in disguise.
+    list.push({ group: 'Help', icon: ICONS.book, label: 'API documentation', keywords: 'swagger openapi', run: () => { close(); window.open(`${import.meta.env.VITE_API_BASE_URL || ''}/swagger-ui/index.html`, '_blank', 'noopener'); } });
 
     if (isAuthenticated) {
       list.push({ group: 'Account', icon: ICONS.exit, label: 'Sign out', keywords: 'logout leave', run: () => { close(); logout('Signed out.'); navigate('/'); } });

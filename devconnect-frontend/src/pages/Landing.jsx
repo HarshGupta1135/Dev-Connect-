@@ -231,6 +231,32 @@ export default function Landing() {
           </Reveal>
         </div>
       </section>
+
+      {/* Pages that end mid-thought feel abandoned. This closes the argument and
+          asks once, clearly. Signed-in visitors get sent to work, not to sign up. */}
+      <section className="wrap section" style={{ paddingTop: 0 }}>
+        <Reveal>
+          <div className="cta-band">
+            <span className="eyebrow">No keyword roulette</span>
+            <h2 style={{ maxWidth: '22ch' }}>
+              Be found for what you <span className="grad-text">actually build</span>.
+            </h2>
+            <p className="lede" style={{ maxWidth: '46ch' }}>
+              A profile takes two minutes. Every open role is scored against it from then on.
+            </p>
+            <div className="row" style={{ gap: 12, flexWrap: 'wrap', justifyContent: 'center' }}>
+              {isAuthenticated ? (
+                <Link to={homeFor} className="btn btn--lg btn--glow">Open my dashboard</Link>
+              ) : (
+                <>
+                  <Link to="/register" className="btn btn--lg btn--glow">Create free account</Link>
+                  <Link to="/jobs" className="btn btn--lg btn--outline">Just browse first</Link>
+                </>
+              )}
+            </div>
+          </div>
+        </Reveal>
+      </section>
     </div>
   );
 }
