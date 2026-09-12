@@ -45,6 +45,15 @@ services:
         sync: false
       - key: MAIL_PASSWORD
         sync: false
+
+      # Mail goes over Brevo's HTTPS API here, not SMTP: this instance cannot reach
+      # ports 25, 465 or 587, so Gmail SMTP times out and every send fails silently.
+      # Without BREVO_API_KEY the app falls back to SMTP and mail does not work.
+      - key: BREVO_API_KEY
+        sync: false
+      # Must be an address verified in Brevo, exactly as spelled there.
+      - key: MAIL_FROM
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

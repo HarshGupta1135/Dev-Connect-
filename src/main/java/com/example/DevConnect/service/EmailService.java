@@ -32,6 +32,10 @@ public class EmailService {
     @Value("${brevo.sender-name:DevConnect}")
     private String senderName;
 
+    /** Only used to address the SMTP fallback, where the Gmail account is the sender. */
+    @Value("${spring.mail.username:}")
+    private String mailUsername;
+
     private final RestClient http = RestClient.create();
 
     private boolean useBrevo() {
@@ -53,6 +57,10 @@ public class EmailService {
         if (!useBrevo()) {
             MimeMessage message = javaMailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, "utf-8");
+            // Without this the message carries no From header at all and JavaMail falls
+            // back to user@<machine-hostname> as the envelope sender. Gmail papers over
+            // it by rewriting to the authenticated account; stricter receivers do not.
+            helper.setFrom(senderEmail.isBlank() ? mailUsername : senderEmail, senderName);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(html, true);
