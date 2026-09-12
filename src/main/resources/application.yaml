@@ -78,7 +78,8 @@ jwt:
 brevo:
   api-key: ${BREVO_API_KEY:}
   sender-name: ${MAIL_FROM_NAME:DevConnect}
-  # Must be an address verified in Brevo, or the API rejects the send with a 400.
+  # Must be an address verified in Brevo (Senders -> Add a sender), or the API rejects
+  # the send. A freemail address is allowed here, unlike Resend, which needs a domain.
   sender-email: ${MAIL_FROM:${MAIL_USERNAME}}
 
 app:
