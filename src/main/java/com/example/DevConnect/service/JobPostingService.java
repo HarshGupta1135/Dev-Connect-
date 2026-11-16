@@ -27,9 +27,12 @@ import com.example.DevConnect.entity.DeveloperProfile;
 import com.example.DevConnect.repository.DeveloperProfileRepository;
 import com.example.DevConnect.util.SkillMatchUtil;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -56,8 +59,10 @@ public class JobPostingService {
     @Autowired
     private DeveloperProfileRepository developerProfileRepository;
 
+    @Autowired
+    private CacheManager cacheManager;
+
     @Transactional
-    @CacheEvict(value = "job-listings", allEntries = true)
     public void createJob(String email, JobPostingRequest jobPostingRequest) {
 
         User user = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User Not Found"));
@@ -94,6 +99,7 @@ public class JobPostingService {
                 .build();
 
         jobPostingRepository.save(jobPosting);
+        evictJobListingsCache();
     }
 
     public CustomPageResponse<JobPostingResponse> getActiveJobs(List<String> skills, String location, JobType jobType, Pageable pageable, String developerEmail) {
@@ -279,7 +285,6 @@ public class JobPostingService {
     }
 
     @Transactional
-    @CacheEvict(value = "job-listings", allEntries = true)
     public void updateJob(String email, Long id, JobPostingRequest request) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User Not Found"));
@@ -330,6 +335,7 @@ public class JobPostingService {
         }
 
         jobPostingRepository.save(jobPosting);
+        evictJobListingsCache();
     }
 
     @Transactional
@@ -349,6 +355,9 @@ public class JobPostingService {
 
         jobPosting.setStatus(JobStatus.CLOSED);
 
+        // Without this a closed job stayed on the public board until the cached page
+        // expired, up to 10 minutes later.
+        evictJobListingsCache();
     }
 
     public List<JobPostingResponse> getAllJobsByRecruiter(String email) {
@@ -368,8 +377,34 @@ public class JobPostingService {
 
     }
 
-    @CacheEvict(value = "job-listings", allEntries = true)
+    /**
+     * Drops every cached job listing, once the current transaction has committed.
+     *
+     * Done by hand rather than with @CacheEvict for two reasons:
+     *  - @CacheEvict(allEntries) calls Cache.clear(), which Spring Data Redis applies
+     *    asynchronously, so a request right after a change could still be served the
+     *    old page. invalidate() takes effect before it returns.
+     *  - @CacheEvict ran when the method returned, which can be before the commit; a
+     *    request in that gap re-cached the old rows. After commit, it cannot.
+     * With no transaction running (a direct call), it evicts straight away.
+     */
     public void evictJobListingsCache() {
-        // Intentionally empty: Spring Cache handles the eviction
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    invalidateJobListings();
+                }
+            });
+        } else {
+            invalidateJobListings();
+        }
+    }
+
+    private void invalidateJobListings() {
+        Cache cache = cacheManager.getCache("job-listings");
+        if (cache != null) {
+            cache.invalidate();
+        }
     }
 }

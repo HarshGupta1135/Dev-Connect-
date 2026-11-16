@@ -11,6 +11,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
+import org.springframework.web.util.HtmlUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -40,6 +41,18 @@ public class EmailService {
 
     private boolean useBrevo() {
         return brevoApiKey != null && !brevoApiKey.isBlank();
+    }
+
+    /**
+     * Escapes a value for the HTML bodies below.
+     *
+     * Every value here is typed by a user: job titles and company names by recruiters,
+     * names by developers. Unescaped, a recruiter could put markup (fake links, hidden
+     * text) into the emails other people receive. Null becomes blank rather than the
+     * word "null", which is what an optional company name used to render as.
+     */
+    private static String html(String value) {
+        return value == null ? "" : HtmlUtils.htmlEscape(value);
     }
 
     /**
@@ -88,7 +101,7 @@ public class EmailService {
         try {
             if (useBrevo()) {
                 // Brevo takes HTML; a plain body still renders as a paragraph.
-                deliver(to, subject, "<p>" + body + "</p>");
+                deliver(to, subject, "<p>" + html(body) + "</p>");
                 return;
             }
             SimpleMailMessage mail = new SimpleMailMessage();
@@ -105,7 +118,11 @@ public class EmailService {
     public void sendStatusUpdateEmail(String toEmail, String developerName, String jobTitle, String newStatus) {
         try {
             String subject = "Application Update: " + jobTitle;
-            
+            // From here on the values go into HTML.
+            developerName = html(developerName);
+            jobTitle = html(jobTitle);
+            newStatus = html(newStatus);
+
             String statusClass = newStatus.equalsIgnoreCase("SHORTLISTED") ? "status-shortlisted" : "status-rejected";
             String statusMessage = newStatus.equalsIgnoreCase("SHORTLISTED") 
                 ? "Congratulations! We are pleased to inform you that you have been shortlisted for this role. The recruitment team will contact you shortly with the next steps of the selection process."
@@ -166,7 +183,8 @@ public class EmailService {
     public void sendWelcomeEmail(String toEmail, String userName) {
         try {
             String subject = "Welcome to DevConnect!";
-            
+            userName = html(userName);
+
             String htmlMsg = "<!DOCTYPE html>\n" +
                     "<html>\n" +
                     "<head>\n" +
@@ -213,7 +231,11 @@ public class EmailService {
     public void sendApplicationConfirmationEmail(String toEmail, String developerName, String jobTitle, String companyName) {
         try {
             String subject = "Application Received: " + jobTitle;
-            
+            // From here on the values go into HTML.
+            developerName = html(developerName);
+            jobTitle = html(jobTitle);
+            companyName = html(companyName);
+
             String htmlMsg = "<!DOCTYPE html>\n" +
                     "<html>\n" +
                     "<head>\n" +
