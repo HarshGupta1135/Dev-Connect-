@@ -1,6 +1,10 @@
 package com.example.DevConnect.config;
 
 import com.example.DevConnect.filter.JwtAuthFilter;
+import com.example.DevConnect.oauth2.GitHubEmailAwareUserService;
+import com.example.DevConnect.oauth2.OAuth2LoginHandler;
+import com.example.DevConnect.oauth2.OAuth2ProviderRegistry;
+import com.example.DevConnect.oauth2.RoleCapturingAuthorizationRequestResolver;
 import com.example.DevConnect.service.UserDetailsServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -16,7 +20,9 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.web.HttpSessionOAuth2AuthorizedClientRepository;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.Http403ForbiddenEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -34,6 +40,15 @@ public class SpringSecurity {
 
     @Autowired
     private JwtAuthFilter jwtAuthFilter;
+
+    @Autowired
+    private OAuth2ProviderRegistry oauth2Providers;
+
+    @Autowired
+    private OAuth2LoginHandler oauth2LoginHandler;
+
+    @Autowired
+    private GitHubEmailAwareUserService oauth2UserService;
 
     @Value("${app.cors.allowed-origins:}")
     private String allowedOrigins;
@@ -92,6 +107,32 @@ public class SpringSecurity {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+
+        /*
+         * "Continue with Google / GitHub", only when a provider has credentials.
+         *
+         * Adds two endpoints, both handled inside the security filters:
+         *   /oauth2/authorization/{google|github}  - sends the browser to the provider
+         *   /login/oauth2/code/{google|github}     - the provider's callback
+         * The callback ends in OAuth2LoginHandler, which issues the usual JWT.
+         */
+        if (oauth2Providers.isEnabled()) {
+            http
+                    .oauth2Login(oauth -> oauth
+                            .clientRegistrationRepository(oauth2Providers)
+                            .authorizationEndpoint(endpoint -> endpoint
+                                    .authorizationRequestResolver(new RoleCapturingAuthorizationRequestResolver(oauth2Providers)))
+                            // Provider tokens are only needed for the sign-in itself, so they
+                            // live in the handshake session that the handler then discards.
+                            .authorizedClientRepository(new HttpSessionOAuth2AuthorizedClientRepository())
+                            .userInfoEndpoint(userInfo -> userInfo.userService(oauth2UserService))
+                            .successHandler(oauth2LoginHandler)
+                            .failureHandler(oauth2LoginHandler))
+                    // oauth2Login would otherwise answer every unauthenticated API call
+                    // with a redirect to a login page. Keep the plain 403 the frontend
+                    // already handles.
+                    .exceptionHandling(ex -> ex.authenticationEntryPoint(new Http403ForbiddenEntryPoint()));
+        }
 
         return http.build();
     }
