@@ -1,0 +1,141 @@
+# Checks every pull request into main, and main itself after a merge.
+#
+#   backend  - compiles and runs every test except the manual ones, against throwaway
+#              MySQL and Redis containers (never the real Aiven / Upstash instances)
+#   frontend - installs and builds the Vite app the way Vercel does
+#   docker   - builds the image Render deploys, so a broken Dockerfile fails here
+#              instead of failing a deploy
+#
+# Deployment itself stays with Render and Vercel, which deploy main on their own.
+# Render can be told to wait for these checks: Settings -> Auto-Deploy ->
+# "After CI checks pass". Branch protection on main can require them before merging.
+#
+# Public repository, so these runs cost nothing.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# A new push to a PR cancels the run still checking the previous one.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (build + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-root
+          MYSQL_DATABASE: devconnect
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -pci-root"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    # Everything the app reads from the environment. All of it is throwaway: the
+    # database and Redis exist only for this run, and mail and Cloudinary are mocked
+    # by the tests that touch them. No repository secrets are needed.
+    env:
+      DB_URL: jdbc:mysql://127.0.0.1:3306/devconnect
+      DB_USERNAME: root
+      DB_PASSWORD: ci-root
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ""
+      REDIS_SSL: "false"
+      JWT_SECRET: ci-only-signing-key-at-least-32-characters-long
+      MAIL_USERNAME: ci@example.com
+      MAIL_PASSWORD: unused
+      CLOUDINARY_CLOUD_NAME: ci
+      CLOUDINARY_API_KEY: ci
+      CLOUDINARY_API_SECRET: ci
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      # verify = compile, unit + controller tests, then the integration tests that
+      # need MySQL and Redis. Only tests tagged "manual" (real email) are skipped.
+      - name: Build and test
+        run: mvn -B -ntp verify -Dtest.excludedGroups=manual
+
+      - name: Upload test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: target/surefire-reports/
+          retention-days: 7
+
+  frontend:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: devconnect-frontend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: devconnect-frontend/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+  docker:
+    name: Docker image (build only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      # Built and thrown away: nothing is pushed anywhere. Render builds its own copy.
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
