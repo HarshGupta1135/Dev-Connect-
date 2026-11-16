@@ -8,6 +8,9 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.bind.MissingServletRequestParameterException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -101,6 +104,29 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleUnreadableRequest(HttpMessageNotReadableException ex) {
         return new ResponseEntity<>(
                 ApiResponse.error("The request body could not be read. Please check the values you sent."),
+                HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * A query or path value of the wrong type: /api/jobs?type=SPACE, /api/jobs/abc,
+     * ?page=first. The caller's mistake, so 400 — the catch-all below reported it as a
+     * 500 and echoed Java type names back to the client.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return new ResponseEntity<>(
+                ApiResponse.error("Invalid value '" + ex.getValue() + "' for '" + ex.getName() + "'"),
+                HttpStatus.BAD_REQUEST);
+    }
+
+    /** A required query parameter or multipart part was not sent, e.g. a resume upload with no file. */
+    @ExceptionHandler({MissingServletRequestParameterException.class, MissingServletRequestPartException.class})
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(Exception ex) {
+        String name = ex instanceof MissingServletRequestParameterException p
+                ? p.getParameterName()
+                : ((MissingServletRequestPartException) ex).getRequestPartName();
+        return new ResponseEntity<>(
+                ApiResponse.error("Missing required parameter '" + name + "'"),
                 HttpStatus.BAD_REQUEST);
     }
 

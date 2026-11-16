@@ -8,9 +8,9 @@ import com.example.DevConnect.enums.JobType;
 import com.example.DevConnect.repository.JobPostingRepository;
 import com.example.DevConnect.repository.UserRepository;
 import com.example.DevConnect.repository.RecruiterProfileRepository;
+import com.example.DevConnect.support.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Calendar;
@@ -19,7 +19,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@IntegrationTest
 @Transactional
 public class JobSchedulerServiceTest {
 
@@ -39,8 +39,11 @@ public class JobSchedulerServiceTest {
     public void testCloseExpiredJobs() {
         // Create recruiter user
         User recruiterUser = new User();
-        recruiterUser.setUserName("test_recruiter_sched");
-        recruiterUser.setEmail("recruiter_sched@gmail.com");
+        // Unique per run: this executes against a real database that may already hold
+        // these rows, and username and email are unique columns.
+        String suffix = java.util.UUID.randomUUID().toString().substring(0, 8);
+        recruiterUser.setUserName("test_recruiter_sched_" + suffix);
+        recruiterUser.setEmail("recruiter_sched_" + suffix + "@gmail.com");
         recruiterUser.setPassword("password");
         recruiterUser.setRole(List.of("RECRUITER"));
         userRepository.save(recruiterUser);

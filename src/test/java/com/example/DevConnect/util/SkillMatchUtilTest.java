@@ -1,67 +1,64 @@
 package com.example.DevConnect.util;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.HashSet;
 import java.util.Set;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
-public class SkillMatchUtilTest {
+/** Pure function: no Spring context needed (this used to start the whole app). */
+class SkillMatchUtilTest {
 
     @Test
-    public void testCalculateMatchScore_standardCase() {
-        Set<Long> devSkills = new HashSet<>();
-        devSkills.add(1L);
-        devSkills.add(2L);
-        devSkills.add(3L);
-
-        Set<Long> jobSkills = new HashSet<>();
-        jobSkills.add(2L);
-        jobSkills.add(3L);
-        jobSkills.add(4L);
-        jobSkills.add(5L);
-
-        // Intersection: {2, 3} = 2
-        // Union: {1, 2, 3, 4, 5} = 5
-        // Expected: 2/5 * 100 = 40.0
-        double expected = 40.0;
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(expected, actual, 0.001);
+    void scoreIsIntersectionOverUnionAsPercentage() {
+        // Intersection {2, 3} = 2, union {1..5} = 5 -> 40%
+        assertEquals(40.0, SkillMatchUtil.calculateMatchScore(Set.of(1L, 2L, 3L), Set.of(2L, 3L, 4L, 5L)), 0.001);
     }
 
     @Test
-    public void testCalculateMatchScore_emptySets() {
-        Set<Long> devSkills = new HashSet<>();
-        Set<Long> jobSkills = new HashSet<>();
-
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(0.0, actual, 0.001);
+    void identicalSetsScoreOneHundred() {
+        assertEquals(100.0, SkillMatchUtil.calculateMatchScore(Set.of(1L, 2L), Set.of(1L, 2L)), 0.001);
     }
 
     @Test
-    public void testCalculateMatchScore_nullInputs() {
-        double actual1 = SkillMatchUtil.calculateMatchScore(null, new HashSet<>());
-        double actual2 = SkillMatchUtil.calculateMatchScore(new HashSet<>(), null);
-        double actual3 = SkillMatchUtil.calculateMatchScore(null, null);
-
-        assertEquals(0.0, actual1, 0.001);
-        assertEquals(0.0, actual2, 0.001);
-        assertEquals(0.0, actual3, 0.001);
+    void developerCoveringEveryJobSkillPlusExtrasIsNotAFullMatch() {
+        // Jaccard penalises extra developer skills: {1,2} vs {1,2,3,4} -> 2/4
+        assertEquals(50.0, SkillMatchUtil.calculateMatchScore(Set.of(1L, 2L, 3L, 4L), Set.of(1L, 2L)), 0.001);
     }
 
     @Test
-    public void testCalculateMatchScore_noIntersection() {
-        Set<Long> devSkills = new HashSet<>();
-        devSkills.add(1L);
-        devSkills.add(2L);
+    void emptySetsScoreZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(new HashSet<>(), new HashSet<>()), 0.001);
+    }
 
-        Set<Long> jobSkills = new HashSet<>();
-        jobSkills.add(3L);
-        jobSkills.add(4L);
+    @Test
+    void oneEmptySideScoresZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(Set.of(1L), new HashSet<>()), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(new HashSet<>(), Set.of(1L)), 0.001);
+    }
 
-        double actual = SkillMatchUtil.calculateMatchScore(devSkills, jobSkills);
-        assertEquals(0.0, actual, 0.001);
+    @Test
+    void nullInputsScoreZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(null, new HashSet<>()), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(new HashSet<>(), null), 0.001);
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(null, null), 0.001);
+    }
+
+    @Test
+    void noOverlapScoresZero() {
+        assertEquals(0.0, SkillMatchUtil.calculateMatchScore(Set.of(1L, 2L), Set.of(3L, 4L)), 0.001);
+    }
+
+    @Test
+    void nullSkillIdIsNeverCountedAsAMatch() {
+        Set<Long> dev = new HashSet<>();
+        dev.add(null);
+        dev.add(1L);
+        Set<Long> job = new HashSet<>();
+        job.add(null);
+        job.add(1L);
+        // Only id 1 matches; the nulls still count towards the union: 1 / (2 + 2 - 1)
+        assertEquals(100.0 / 3, SkillMatchUtil.calculateMatchScore(dev, job), 0.001);
     }
 }
