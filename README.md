@@ -8,10 +8,11 @@ A job board that ranks roles by how closely they match a developer's actual skil
 | ⚙️ **API** | https://devconnect-backend-u07y.onrender.com |
 | 📖 **API docs (Swagger UI)** | https://devconnect-backend-u07y.onrender.com/swagger-ui/index.html |
 
-> **The API sleeps when idle.** Render's free tier spins the service down after 15 minutes,
-> and a JVM cold-starting on half a CPU takes 1–2 minutes. Open
-> [`/health`](https://devconnect-backend-u07y.onrender.com/health) first and wait for
-> `{"success":true}` — then the app is instant.
+> **Kept awake by an uptime monitor.** Render's free tier spins the service down after
+> 15 minutes without traffic, and a JVM cold-starting on half a CPU takes 1–2 minutes.
+> UptimeRobot requests [`/health`](https://devconnect-backend-u07y.onrender.com/health)
+> and `/api/jobs` every 5 minutes, so it stays up. Right after a deploy it can still take
+> a minute or two to answer; open `/health` and wait for `{"success":true}`.
 
 <!--
   DEMO RECORDING — add one and uncomment the line below.
