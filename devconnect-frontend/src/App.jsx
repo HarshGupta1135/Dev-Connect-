@@ -29,6 +29,8 @@ const loadMotionFeatures = () => import('./lib/motion-features').then((mod) => m
  */
 const Login = lazy(() => import('./pages/Login'));
 const Register = lazy(() => import('./pages/Register'));
+const OAuthCallback = lazy(() => import('./pages/OAuthCallback'));
+const Privacy = lazy(() => import('./pages/Privacy'));
 const Jobs = lazy(() => import('./pages/Jobs'));
 const JobDetail = lazy(() => import('./pages/JobDetail'));
 const DeveloperDashboard = lazy(() => import('./pages/DeveloperDashboard'));
@@ -76,6 +78,8 @@ export default function App() {
           <Route path="/jobs/:id" element={<JobDetail />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/oauth2/callback" element={<OAuthCallback />} />
+          <Route path="/privacy" element={<Privacy />} />
 
           {/* developer */}
           <Route

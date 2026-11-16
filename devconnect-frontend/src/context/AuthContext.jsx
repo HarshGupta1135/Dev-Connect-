@@ -51,6 +51,20 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
+   * Stores a session that arrived from a Google/GitHub sign-in.
+   *
+   * The backend issues the same JWT as the password login and passes it to
+   * /oauth2/callback, so this stores it exactly the way login() does.
+   */
+  const completeOAuthLogin = useCallback(({ token, email, roles }) => {
+    const profile = { email, roles };
+    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(profile));
+    setUser({ ...profile, token });
+    return { ...profile, token };
+  }, []);
+
+  /**
    * Re-points the stored session after an account edit.
    *
    * The JWT's subject is the email, so changing the address invalidates the token
@@ -118,6 +132,7 @@ export function AuthProvider({ children }) {
       ready,
       roles,
       login,
+      completeOAuthLogin,
       logout,
       updateSession,
       isAuthenticated: Boolean(user),
@@ -126,7 +141,7 @@ export function AuthProvider({ children }) {
       isAdmin: has('ADMIN'),
       homeFor: has('RECRUITER') ? '/recruiter/dashboard' : has('DEVELOPER') ? '/developer/dashboard' : '/jobs',
     };
-  }, [user, ready, login, logout, updateSession]);
+  }, [user, ready, login, completeOAuthLogin, logout, updateSession]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

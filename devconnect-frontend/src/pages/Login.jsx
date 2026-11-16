@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { errorMessage } from '../api/client';
 import AuthAside from '../components/AuthAside';
 import Field from '../components/Field';
+import OAuthButtons from '../components/OAuthButtons';
 import PasswordInput from '../components/PasswordInput';
 import { useAuth } from '../context/AuthContext';
 
@@ -73,6 +74,8 @@ export default function Login() {
           {isSubmitting && <span className="spinner" />}
           {isSubmitting ? 'Signing in…' : 'Sign in'}
         </button>
+
+        <OAuthButtons />
 
         <p className="small muted" style={{ textAlign: 'center' }}>
           New here? <Link to="/register" style={{ color: 'var(--accent)', fontWeight: 600 }}>Create an account</Link>

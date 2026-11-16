@@ -5,6 +5,7 @@ import { errorMessage } from '../api/client';
 import { registerUser } from '../api/endpoints';
 import AuthAside from '../components/AuthAside';
 import Field from '../components/Field';
+import OAuthButtons from '../components/OAuthButtons';
 import PasswordInput from '../components/PasswordInput';
 
 // Mirrored from the backend's own rules so users see the problem before a round trip.
@@ -15,6 +16,7 @@ export default function Register() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm({ defaultValues: { username: '', email: '', password: '', role: 'DEVELOPER' } });
 
@@ -115,6 +117,9 @@ export default function Register() {
           {isSubmitting && <span className="spinner" />}
           {isSubmitting ? 'Creating account…' : 'Create account'}
         </button>
+
+        {/* Uses the role picked above; username, email and password come from the provider. */}
+        <OAuthButtons role={watch('role')} />
 
         <p className="small muted" style={{ textAlign: 'center' }}>
           Already registered? <Link to="/login" style={{ color: 'var(--accent)', fontWeight: 600 }}>Sign in</Link>

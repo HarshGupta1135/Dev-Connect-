@@ -97,3 +97,23 @@ app:
     username: ${ADMIN_USERNAME:admin}
     email: ${ADMIN_EMAIL:}
     password: ${ADMIN_PASSWORD:}
+
+  # "Continue with Google / GitHub". Each provider is switched on only when its client
+  # id is set, so the app starts exactly as before while these are blank. Deliberately
+  # not under spring.security.oauth2.client: Boot fails startup on an empty client id
+  # there, which would take the deployed app down until the keys exist.
+  oauth2:
+    # Where the browser is sent after signing in with a provider. The frontend's
+    # /oauth2/callback page picks the JWT up from there.
+    frontend-url: ${FRONTEND_URL:http://localhost:3000}
+    # This API's public origin, used to build the callback URL registered with Google
+    # and GitHub. Blank locally (it is worked out from the request). Set it when
+    # deployed: behind Render/Railway's proxy the request looks like plain http, and
+    # the providers reject a callback URL that does not match exactly.
+    backend-url: ${BACKEND_URL:}
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:}
+      client-secret: ${GOOGLE_CLIENT_SECRET:}
+    github:
+      client-id: ${GITHUB_CLIENT_ID:}
+      client-secret: ${GITHUB_CLIENT_SECRET:}

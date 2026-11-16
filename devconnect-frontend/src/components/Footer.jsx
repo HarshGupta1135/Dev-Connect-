@@ -87,7 +87,9 @@ export default function Footer() {
         </div>
 
         <div className="footer__base">
-          <span>© {new Date().getFullYear()} DevConnect</span>
+          <span>
+            © {new Date().getFullYear()} DevConnect · <Link to="/privacy" className="footer__link">Privacy</Link>
+          </span>
           <span className="mono">Spring Boot · React · MySQL · Redis</span>
         </div>
       </div>
