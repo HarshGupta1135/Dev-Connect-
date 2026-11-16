@@ -6,7 +6,10 @@
 #
 # Free instance caveats worth knowing rather than discovering:
 #   - spins down after 15 minutes without traffic; the next request waits ~1 minute
-#     while the JVM starts. Nothing is lost, it is just slow to wake.
+#     while the JVM starts. An UptimeRobot monitor requests /health and /api/jobs every
+#     5 minutes to prevent that. (A scheduled GitHub Actions workflow was tried first:
+#     GitHub ran it every 3-10 hours instead of every 10 minutes, then disabled it after
+#     60 days without commits.)
 #   - the filesystem is ephemeral. This app never writes to it — resumes go to
 #     Cloudinary — so that costs nothing here.
 #   - 750 instance-hours per month, enough for one service running continuously.
