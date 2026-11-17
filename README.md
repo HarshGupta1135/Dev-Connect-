@@ -1,5 +1,7 @@
 # DevConnect
 
+[![CI](https://github.com/HarshGupta1135/Dev-Connect-/actions/workflows/ci.yml/badge.svg)](https://github.com/HarshGupta1135/Dev-Connect-/actions/workflows/ci.yml)
+
 A job board that ranks roles by how closely they match a developer's actual skill set, rather than by keyword — built on Spring Boot 4 and Java 25, with a React client, Redis-cached search, and a schema that migrates itself.
 
 | | |
@@ -30,6 +32,7 @@ A job board that ranks roles by how closely they match a developer's actual skil
 **Core**
 
 - ✅ JWT authentication with role-based access — developer, recruiter, admin
+- ✅ **Sign in with Google or GitHub** — OAuth 2.0 that ends in the same JWT as a password login
 - ✅ Developer profiles: bio, location, years of experience, skills, LinkedIn, resume
 - ✅ Recruiter company profiles and job posting with required skills and expiry
 - ✅ Public, paginated, filterable job search — by skill, location and work style
@@ -47,6 +50,7 @@ A job board that ranks roles by how closely they match a developer's actual skil
 - ✅ **Notification address of your choice** — route mail to a secondary email
 - ✅ **Multi-stage Docker build** — 84 MB app jar in a 463 MB image, no Maven or JDK shipped
 - ✅ **One-command local stack** — `docker compose up` for API, MySQL and Redis
+- ✅ **CI on every pull request** — 248 tests, the client build and the Docker build must all pass before anything merges to `main`
 - ✅ Interactive OpenAPI documentation
 
 ---
@@ -186,6 +190,10 @@ the error can be indirect: a missing `DB_PASSWORD` surfaces as `Access denied fo
 because Spring leaves an unresolved placeholder as literal text. Check `.env` against
 `.env.example` first.
 
+The exception is social sign-in. `GOOGLE_CLIENT_ID` and `GITHUB_CLIENT_ID` are optional:
+each provider switches on only when its id is set, and with neither the app behaves
+exactly as without OAuth. See [Sign in with Google and GitHub](#sign-in-with-google-and-github).
+
 ### Everything in containers
 
 ```bash
@@ -293,6 +301,43 @@ CORS_ALLOWED_ORIGINS=https://your-app.vercel.app     # on Render
 Exact match, no trailing slash. The backend sends no CORS headers while this is empty,
 which is why local development needs none.
 
+### Sign in with Google and GitHub
+
+Optional. Each provider turns on when its keys are set on Render (and in `.env` locally):
+
+```
+GOOGLE_CLIENT_ID=...            GOOGLE_CLIENT_SECRET=...
+GITHUB_CLIENT_ID=...            GITHUB_CLIENT_SECRET=...
+FRONTEND_URL=https://dev-connect-delta-pied.vercel.app
+BACKEND_URL=https://devconnect-backend-u07y.onrender.com
+```
+
+`BACKEND_URL` is required when deployed. Behind Render's proxy the request looks like
+plain `http`, so the callback URL would be built as `http://…`, and both providers reject a
+callback that does not match the registered one exactly. Locally, leave it unset.
+
+Register these callback URLs with the providers. Add the `localhost` one too if you want
+sign-in to work in development:
+
+```
+https://devconnect-backend-u07y.onrender.com/login/oauth2/code/google
+https://devconnect-backend-u07y.onrender.com/login/oauth2/code/github
+http://localhost:8080/login/oauth2/code/{google|github}
+```
+
+- **Google** — Google Cloud → Google Auth Platform → Clients → Web application. Until the
+  app is **published** (Audience → Publish app) only listed test users can sign in, and
+  publishing needs a home page and the privacy policy at `/privacy` under Branding. With
+  only name, email and profile requested, publishing needs no review. Do not upload a
+  logo unless you want one: it triggers brand verification.
+- **GitHub** — Settings → Developer settings → OAuth Apps. No test mode; anyone with a
+  verified primary email can sign in.
+
+How it works: the provider returns to the API, which matches the account on the
+provider-**verified** email, creates it if needed with the role picked on the register
+page, and redirects to `/oauth2/callback#token=…` on the client. The token travels in the
+URL fragment, which browsers never send to a server.
+
 <details>
 <summary>Railway, if you would rather pay for no cold starts (~$10/month)</summary>
 
@@ -312,12 +357,33 @@ REDIS_SSL=false
 ## Tests
 
 ```bash
-./mvnw test
+./mvnw test                                   # 223 unit + controller tests, nothing else needed
+./mvnw verify -Dtest.excludedGroups=manual    # all 248, needs: docker compose up -d mysql redis
 ```
 
-The suite is integration-level `@SpringBootTest`, so it needs MySQL, Redis and mail
-credentials available — start `docker compose up -d mysql redis` first. It covers the
-caching speedup and the scheduled expiry sweep.
+| Kind | Count | What it covers |
+| --- | --- | --- |
+| Unit | 161 | every service, JWT, the JWT filter, schedulers, admin seeding, all of OAuth |
+| Controller (`@WebMvcTest`) | 62 | every endpoint through the real security config: roles, validation, status codes |
+| Integration (`@Tag("integration")`) | 25 | the full hiring flow over HTTP, job search on real SQL, repositories, Redis caching, Flyway |
+
+Integration tests run against whatever database `.env` points at. They use unique names
+and roll back, but never point them at production. `MailTest` sends a real email, so it is
+tagged `manual` and never runs on its own:
+`./mvnw test -Dtest=MailTest -Dtest.excludedGroups= -Dmail.test.to=you@gmail.com`.
+
+### Continuous integration
+
+`.github/workflows/ci.yml` runs on every pull request into `main` and on every push to it:
+
+| Job | What it does |
+| --- | --- |
+| Backend (build + tests) | all 248 tests against throwaway MySQL and Redis containers; no secrets needed |
+| Frontend (build) | `npm ci` and `npm run build` |
+| Docker image (build only) | builds the image Render deploys, without pushing it |
+
+`main` is protected: all three must pass before a pull request can merge. Render is set to
+deploy only after the checks pass on `main`, and Vercel deploys the client on its own.
 
 ---
 
@@ -331,11 +397,14 @@ caching speedup and the scheduled expiry sweep.
 │   ├── entity/          JPA entities
 │   ├── exception/       typed exceptions + @RestControllerAdvice
 │   ├── filter/          JWT authentication filter
+│   ├── oauth2/          Google and GitHub sign-in
 │   ├── scheduler/       status-mail sweep
 │   ├── service/         business logic
 │   └── util/            JWT helper, Jaccard scoring
 ├── src/main/resources/db/migration/    Flyway SQL
+├── src/test/java/…                     unit, controller and integration tests
 ├── devconnect-frontend/                React + Vite client
+├── .github/workflows/ci.yml            CI: tests, client build, Docker build
 ├── Dockerfile                          multi-stage build
 ├── docker-compose.yml                  API + MySQL + Redis
 ├── render.yaml                         Render blueprint
